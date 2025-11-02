@@ -3092,61 +3092,51 @@
   }
 
   function renderExpertIntro(config, mount, state, handlers) {
-    const section = createElement('section', 'idsq-step');
-    
-    // Add Clara intro
-    const claraWrapper = createElement('div', 'idsq-clara-mini-wrapper');
-    const claraMini = createElement('img', 'idsq-clara-mini', {
-      src: config.copy.claraProfileUrl,
-      alt: 'Clara',
-      draggable: 'false',
-    });
-    claraMini.addEventListener('contextmenu', (e) => e.preventDefault());
-    const claraInfo = createElement('p', 'idsq-clara-info');
-    claraInfo.innerHTML = '<span class="idsq-clara-info-name">Clara</span> · Interior Design Expert';
-    claraWrapper.appendChild(claraMini);
-    claraWrapper.appendChild(claraInfo);
-    section.appendChild(claraWrapper);
+    const section = createElement('section', 'idsq-intro');
     
     // Title
     const title = createElement('h2', 'idsq-title');
-    title.textContent = 'Welcome to your expert team!';
+    title.textContent = 'Meet Your Expert Team';
     section.appendChild(title);
     
     const description = createElement('p', 'idsq-description');
     description.textContent = 'Three specialists will guide you through your project, each bringing their unique expertise to help bring your vision to life.';
     section.appendChild(description);
     
-    // Show all three experts
+    // Show all three experts in a grid matching quiz style
     const experts = [
       { name: 'Clara', avatar: config.copy.claraProfileUrl, title: 'Interior Design Expert', desc: 'Refines your aesthetic and curates finishes to match your style' },
       { name: 'Aria', avatar: config.copy.ariaProfileUrl, title: 'Architect', desc: 'Optimizes layout, lighting, and structure for your space' },
       { name: 'Mason', avatar: config.copy.masonProfileUrl, title: 'General Contractor', desc: 'Ensures durability, practicality, and smart construction' },
     ];
     
-    const expertsGrid = createElement('div', 'idsq-options-grid');
+    const grid = createElement('div', 'idsq-option-grid');
     experts.forEach((expert) => {
-      const card = createElement('div', 'idsq-expert-card');
-      const avatar = createElement('img', 'idsq-expert-avatar', {
+      const card = createElement('div', 'idsq-option-card');
+      card.classList.add('idsq-space-card');
+      
+      const avatar = createElement('img', 'idsq-option-image', {
         src: expert.avatar,
         alt: expert.name,
         draggable: 'false',
+        style: 'width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 0;',
       });
       avatar.addEventListener('contextmenu', (e) => e.preventDefault());
-      const name = createElement('h3', 'idsq-expert-name');
-      name.textContent = expert.name;
-      const role = createElement('p', 'idsq-expert-role');
-      role.textContent = expert.title;
-      const desc = createElement('p', 'idsq-expert-desc');
-      desc.textContent = expert.desc;
+      
+      const label = createElement('div', 'idsq-option-label');
+      const expertTitle = createElement('h3', 'idsq-option-title');
+      expertTitle.textContent = expert.name;
+      const expertRole = createElement('p', 'idsq-option-description');
+      expertRole.textContent = expert.title;
+      
+      label.appendChild(expertTitle);
+      label.appendChild(expertRole);
       
       card.appendChild(avatar);
-      card.appendChild(name);
-      card.appendChild(role);
-      card.appendChild(desc);
-      expertsGrid.appendChild(card);
+      card.appendChild(label);
+      grid.appendChild(card);
     });
-    section.appendChild(expertsGrid);
+    section.appendChild(grid);
     
     // Navigation
     const navigation = createElement('div', 'idsq-step-navigation');
