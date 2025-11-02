@@ -3859,18 +3859,40 @@
         }
       },
       onRestart() {
-        clearState();
-        state.currentFlow = 'intro';
-        state.currentStep = -1;
-        state.selectedSpace = null;
-        state.participantName = null;
-        state.wordChoice = null;
-        state.choices = [];
-        state.topStyles = [];
-        state.finalStyle = null;
-        state.leadData = {};
-        state.newsLetterSignup = false;
-        renderIntro(config, mount, handlers);
+        // Check if we're in materials flow and have quiz results to preserve
+        if ((state.currentFlow === 'expert-intro' || state.currentFlow === 'project-type' || 
+            state.currentFlow === 'project-context' || state.currentFlow === 'materials-selection' ||
+            state.currentFlow === 'material-review') && state.selectedSpace && state.finalStyle) {
+          // Preserve selectedSpace and finalStyle, but clear materials data
+          const savedSpace = state.selectedSpace;
+          const savedStyle = state.finalStyle;
+          const savedParticipantName = state.participantName;
+          clearState();
+          state.selectedSpace = savedSpace;
+          state.finalStyle = savedStyle;
+          state.participantName = savedParticipantName;
+          state.currentFlow = 'expert-intro';
+          state.projectContext = {};
+          state.currentExpert = 'aria';
+          state.currentExpertQuestion = 0;
+          state.materialsSelections = {};
+          saveState(state);
+          renderExpertIntro(config, mount, state, handlers);
+        } else {
+          // Full restart from beginning
+          clearState();
+          state.currentFlow = 'intro';
+          state.currentStep = -1;
+          state.selectedSpace = null;
+          state.participantName = null;
+          state.wordChoice = null;
+          state.choices = [];
+          state.topStyles = [];
+          state.finalStyle = null;
+          state.leadData = {};
+          state.newsLetterSignup = false;
+          renderIntro(config, mount, handlers);
+        }
       },
       onSelectMaterials() {
         // Start expert-guided flow with intro
