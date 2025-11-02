@@ -2575,6 +2575,15 @@
         justify-content: center;
         min-height: 200px;
       }
+      .idsq-space-card .idsq-option-image {
+        box-shadow: none;
+      }
+      .idsq-option-card.idsq-space-card {
+        box-shadow: 0 4px 20px rgba(44, 44, 44, 0.1);
+      }
+      .idsq-option-card.idsq-space-card:hover {
+        box-shadow: 0 12px 40px rgba(44, 44, 44, 0.12);
+      }
       .idsq-space-icon {
         font-size: 3rem;
         margin-bottom: 0.75rem;
@@ -3119,7 +3128,7 @@
         src: expert.avatar,
         alt: expert.name,
         draggable: 'false',
-        style: 'width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 0;',
+        style: 'width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 16px 16px 0 0;',
       });
       avatar.addEventListener('contextmenu', (e) => e.preventDefault());
       
