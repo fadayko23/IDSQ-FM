@@ -17,9 +17,9 @@ window.IDSQ.buildQuiz({
 </script>
 ```
 
-## Updated Webflow Embed Code (Latest Commit `aa329bd` - Materials Selection Feature):
+## Updated Webflow Embed Code (Latest Commit `1f92c9d` - Materials Selection Feature):
 ```html
-<script src="https://cdn.jsdelivr.net/gh/fadayko23/IDSQ-FM@aa329bd/src/idsq-quiz.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/fadayko23/IDSQ-FM@1f92c9d/src/idsq-quiz.min.js"></script>
 <script>
 window.IDSQ.buildQuiz({
   webhook: {
@@ -34,7 +34,7 @@ window.IDSQ.buildQuiz({
 
 ## What Changed:
 - Repository: `IDSQ` → `IDSQ-FM` (new repository for material selections feature)
-- Commit: `@main` → `@aa329bd`
+- Commit: `@main` → `@1f92c9d`
 - Feature: Added "Select Materials" continuation with 3-round selection process for bathroom and kitchen spaces
 
 ## Instructions:
