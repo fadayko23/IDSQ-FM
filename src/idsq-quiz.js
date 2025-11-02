@@ -2385,16 +2385,6 @@
         width: 100%;
         margin-top: 2rem;
       }
-      .idsq-option-grid-wrapper {
-        display: flex;
-        justify-content: center;
-        width: 100%;
-        margin-top: 2rem;
-      }
-      .idsq-option-grid-wrapper > .idsq-option-grid {
-        max-width: 600px;
-        width: 100%;
-      }
       .idsq-final-grid {
         grid-template-columns: repeat(2, 1fr);
         max-width: 900px;
@@ -3192,7 +3182,6 @@
     section.appendChild(description);
     
     // Show project type options in room selection style
-    const gridWrapper = createElement('div', 'idsq-option-grid-wrapper');
     const grid = createElement('div', 'idsq-option-grid');
     config.projectContext.type.forEach((type) => {
       const card = createElement('button', 'idsq-option-card', {
@@ -3227,8 +3216,7 @@
       card.appendChild(label);
       grid.appendChild(card);
     });
-    gridWrapper.appendChild(grid);
-    section.appendChild(gridWrapper);
+    section.appendChild(grid);
     
     // Navigation
     const navigation = createElement('div', 'idsq-step-navigation');
@@ -3246,10 +3234,10 @@
       const continueButton = createElement('button', 'idsq-button idsq-button-primary');
       continueButton.textContent = 'Continue →';
       continueButton.addEventListener('click', () => {
-        // Move to expert questions
+        // Move to expert questions (skip first question since we just did project-type)
         state.currentFlow = 'project-context';
         state.currentExpert = 'aria';
-        state.currentExpertQuestion = 0;
+        state.currentExpertQuestion = 1;
         saveState(state);
         renderExpertQuestion(config, mount, state, handlers);
       });
