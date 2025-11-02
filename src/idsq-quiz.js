@@ -657,6 +657,32 @@
         },
       },
     },
+    materialsBySpace: {
+      bathroom: [
+        { id: 'flooring', name: 'Flooring', description: 'Choose your perfect flooring foundation' },
+        { id: 'backsplash', name: 'Backsplash', description: 'Select wall tiles that inspire' },
+        { id: 'countertops', name: 'Countertops', description: 'Pick your surface material' },
+        { id: 'faucet', name: 'Faucet', description: 'Choose your faucet style' },
+        { id: 'cabinet-door', name: 'Cabinet Door', description: 'Select door style' },
+        { id: 'cabinet-finish', name: 'Cabinet Finish', description: 'Pick your cabinet finish' },
+        { id: 'cabinet-hardware', name: 'Cabinet Hardware', description: 'Choose hardware details' },
+        { id: 'tub', name: 'Tub', description: 'Select your bathtub' },
+        { id: 'toilet', name: 'Toilet', description: 'Choose your toilet style' },
+        { id: 'showerhead', name: 'Showerhead', description: 'Pick your shower experience' },
+        { id: 'paint', name: 'Paint Color', description: 'Select your wall color' },
+      ],
+      kitchen: [
+        { id: 'flooring', name: 'Flooring', description: 'Choose your perfect flooring foundation' },
+        { id: 'backsplash', name: 'Backsplash', description: 'Select wall tiles that inspire' },
+        { id: 'countertops', name: 'Countertops', description: 'Pick your surface material' },
+        { id: 'faucet', name: 'Faucet', description: 'Choose your faucet style' },
+        { id: 'cabinet-door', name: 'Cabinet Door', description: 'Select door style' },
+        { id: 'cabinet-finish', name: 'Cabinet Finish', description: 'Pick your cabinet finish' },
+        { id: 'cabinet-hardware', name: 'Cabinet Hardware', description: 'Choose hardware details' },
+        { id: 'appliances', name: 'Appliances', description: 'Select your appliances' },
+        { id: 'paint', name: 'Paint Color', description: 'Select your wall color' },
+      ],
+    },
   };
 
   // Build dynamic 4-round step set covering 12 styles (3 options x 4 rounds)
@@ -2008,11 +2034,16 @@
     });
     scheduleButton.textContent = 'Schedule';
     
+    const selectMaterialsButton = createElement('button', 'idsq-button idsq-button-secondary');
+    selectMaterialsButton.textContent = 'Select Materials';
+    selectMaterialsButton.addEventListener('click', () => handlers.onSelectMaterials());
+    
     const restart = createElement('button', 'idsq-button idsq-button-secondary');
     restart.textContent = config.copy.retryButton;
     restart.addEventListener('click', handlers.onRestart);
     
     buttonContainer.appendChild(scheduleButton);
+    buttonContainer.appendChild(selectMaterialsButton);
     buttonContainer.appendChild(restart);
 
     section.appendChild(title);
@@ -2797,6 +2828,327 @@
     document.head.appendChild(style);
   }
 
+  // Materials Selection Functions
+  function getUnsplashImageUrl(styleId, category, index) {
+    // Use actual Unsplash photo URLs for demo purposes
+    // In production, these would come from Airtable
+    const images = {
+      flooring: [
+        'https://images.unsplash.com/photo-1628771065518-0d82f1938462?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600607687644-c7171b42498b?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600585153490-76fb20a32601?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600607688676-da9078024c94?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600566753151-384129cf4e3e?w=900&auto=format&fit=crop&q=80',
+      ],
+      backsplash: [
+        'https://images.unsplash.com/photo-1556911220-bff31c812dba?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1628771065518-0d82f1938462?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600585153490-76fb20a32601?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600607688676-da9078024c94?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600566753151-384129cf4e3e?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600607688732-b72b027c846b?w=900&auto=format&fit=crop&q=80',
+      ],
+      countertops: [
+        'https://images.unsplash.com/photo-1600607688969-a5c1434e9b5f?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600607687644-c7171b42498b?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600607688676-da9078024c94?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600566753151-384129cf4e3e?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600585153490-76fb20a32601?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=900&auto=format&fit=crop&q=80',
+      ],
+      faucet: [
+        'https://images.unsplash.com/photo-1563453392212-326f5e854473?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1568822817140-58069be45bfb?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600607687644-c7171b42498b?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600585153490-76fb20a32601?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600607688676-da9078024c94?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600566753151-384129cf4e3e?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600607688732-b72b027c846b?w=900&auto=format&fit=crop&q=80',
+      ],
+      'cabinet-door': [
+        'https://images.unsplash.com/photo-1600607687644-c7171b42498b?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1628771065518-0d82f1938462?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600585153490-76fb20a32601?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600607688676-da9078024c94?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600566753151-384129cf4e3e?w=900&auto=format&fit=crop&q=80',
+      ],
+      'cabinet-finish': [
+        'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600566753151-384129cf4e3e?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1628771065518-0d82f1938462?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600585153490-76fb20a32601?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600607688676-da9078024c94?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600607688732-b72b027c846b?w=900&auto=format&fit=crop&q=80',
+      ],
+      'cabinet-hardware': [
+        'https://images.unsplash.com/photo-1600607687644-c7171b42498b?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1628771065518-0d82f1938462?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600585153490-76fb20a32601?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600607688676-da9078024c94?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600566753151-384129cf4e3e?w=900&auto=format&fit=crop&q=80',
+      ],
+      tub: [
+        'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600566753151-384129cf4e3e?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1628771065518-0d82f1938462?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600585153490-76fb20a32601?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600607688676-da9078024c94?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600607688732-b72b027c846b?w=900&auto=format&fit=crop&q=80',
+      ],
+      toilet: [
+        'https://images.unsplash.com/photo-1628771065518-0d82f1938462?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600566753151-384129cf4e3e?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600585153490-76fb20a32601?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600607688676-da9078024c94?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600607688732-b72b027c846b?w=900&auto=format&fit=crop&q=80',
+      ],
+      showerhead: [
+        'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600607688676-da9078024c94?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600566753151-384129cf4e3e?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600585153490-76fb20a32601?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1628771065518-0d82f1938462?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600607688732-b72b027c846b?w=900&auto=format&fit=crop&q=80',
+      ],
+      paint: [
+        'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1628771065518-0d82f1938462?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600585153490-76fb20a32601?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600607688676-da9078024c94?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600566753151-384129cf4e3e?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600607688732-b72b027c846b?w=900&auto=format&fit=crop&q=80',
+      ],
+      appliances: [
+        'https://images.unsplash.com/photo-1556911220-bff31c812dba?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600607688969-a5c1434e9b5f?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1628771065518-0d82f1938462?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600585153490-76fb20a32601?w=900&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=900&auto=format&fit=crop&q=80',
+      ],
+    };
+    const categoryImages = images[category] || images.flooring;
+    return categoryImages[index % categoryImages.length];
+  }
+
+  function generateMaterialOptions(category, styleId, roundNumber) {
+    // For demo purposes, generate 3 random options per round
+    // In production, these would come from Airtable
+    const options = [];
+    for (let i = 0; i < 3; i++) {
+      const index = (roundNumber - 1) * 3 + i;
+      options.push({
+        id: `${category}-${roundNumber}-${i}`,
+        name: `${category.charAt(0).toUpperCase() + category.slice(1)} Option ${i + 1}`,
+        imageUrl: getUnsplashImageUrl(styleId, category, index),
+        description: `Beautiful ${category} that complements your ${styleId} style`,
+      });
+    }
+    return options;
+  }
+
+  function renderMaterialsSelection(config, mount, state, handlers) {
+    const section = createElement('section', 'idsq-materials');
+    
+    // Add Clara mini intro
+    const claraWrapper = createElement('div', 'idsq-clara-mini-wrapper');
+    const claraMini = createElement('img', 'idsq-clara-mini', {
+      src: config.copy.claraProfileUrl,
+      alt: 'Clara',
+      draggable: 'false',
+    });
+    claraMini.addEventListener('contextmenu', (e) => e.preventDefault());
+    const claraInfo = createElement('p', 'idsq-clara-info');
+    claraInfo.innerHTML = '<span class="idsq-clara-info-name">Clara</span> · Interior Design Expert';
+    claraWrapper.appendChild(claraMini);
+    claraWrapper.appendChild(claraInfo);
+    
+    const title = createElement('h2', 'idsq-title');
+    const spaceName = state.selectedSpace === 'bathroom' ? 'Bathroom' : state.selectedSpace === 'kitchen' ? 'Kitchen' : 'Space';
+    title.textContent = `Let's select materials for your ${spaceName}`;
+    
+    const description = createElement('p', 'idsq-description');
+    description.textContent = `I'll help you choose the perfect materials and finishes for your ${state.finalStyle.styleName} ${spaceName.toLowerCase()}.`;
+    
+    const categories = config.materialsBySpace[state.selectedSpace] || [];
+    
+    if (categories.length === 0) {
+      // No materials for this space
+      const noMaterials = createElement('p', 'idsq-description');
+      noMaterials.textContent = 'Materials selection is not available for this space yet.';
+      section.appendChild(claraWrapper);
+      section.appendChild(title);
+      section.appendChild(description);
+      section.appendChild(noMaterials);
+      showSection(mount, section);
+      return;
+    }
+    
+    const currentCategory = categories[state.currentCategoryIndex || 0];
+    
+    // Show current category and progress
+    const categoryInfo = createElement('div', 'idsq-category-info');
+    const categoryTitle = createElement('h3', 'idsq-category-title');
+    categoryTitle.textContent = currentCategory.name;
+    categoryInfo.appendChild(categoryTitle);
+    
+    const progress = createElement('p', 'idsq-progress');
+    progress.textContent = `${state.currentCategoryIndex + 1} of ${categories.length}`;
+    categoryInfo.appendChild(progress);
+    
+    // Initialize round tracking for this category
+    if (!state.materialsSelections[currentCategory.id]) {
+      state.materialsSelections[currentCategory.id] = {
+        round: 1,
+        winners: [],
+      };
+    }
+    
+    const categoryState = state.materialsSelections[currentCategory.id];
+    const options = generateMaterialOptions(currentCategory.id, state.finalStyle.styleId, categoryState.round);
+    
+    const grid = createElement('div', 'idsq-options-grid');
+    options.forEach((option) => {
+      const card = createElement('div', 'idsq-option-card');
+      const img = createElement('img', 'idsq-option-image', {
+        src: option.imageUrl,
+        alt: option.name,
+        loading: 'lazy',
+        draggable: 'false',
+      });
+      img.addEventListener('contextmenu', (e) => e.preventDefault());
+      
+      const label = createElement('span', 'idsq-option-label');
+      label.textContent = option.name;
+      
+      card.appendChild(img);
+      card.appendChild(label);
+      card.addEventListener('click', () => {
+        card.classList.add('selected');
+        setTimeout(() => {
+          handlers.onSelectMaterial(currentCategory.id, option, categoryState.round);
+        }, 300);
+      });
+      
+      grid.appendChild(card);
+    });
+    
+    const continueButton = createElement('button', 'idsq-button idsq-button-primary');
+    continueButton.style.display = 'none';
+    continueButton.textContent = 'Continue →';
+    continueButton.addEventListener('click', () => {
+      if (categoryState.round === 3) {
+        // Move to next category or finish
+        if (state.currentCategoryIndex < categories.length - 1) {
+          state.currentCategoryIndex += 1;
+          saveState(state);
+          renderMaterialsSelection(config, mount, state, handlers);
+        } else {
+          // All categories done!
+          renderMaterialsComplete(config, mount, state, handlers);
+        }
+      } else {
+        // Next round in same category
+        categoryState.round += 1;
+        saveState(state);
+        renderMaterialsSelection(config, mount, state, handlers);
+      }
+    });
+    
+    section.appendChild(claraWrapper);
+    section.appendChild(title);
+    section.appendChild(description);
+    section.appendChild(categoryInfo);
+    section.appendChild(grid);
+    section.appendChild(continueButton);
+    
+    showSection(mount, section);
+  }
+
+  function renderMaterialsComplete(config, mount, state, handlers) {
+    const section = createElement('section', 'idsq-success');
+    
+    const claraWrapper = createElement('div', 'idsq-clara-mini-wrapper');
+    const claraMini = createElement('img', 'idsq-clara-mini', {
+      src: config.copy.claraProfileUrl,
+      alt: 'Clara',
+      draggable: 'false',
+    });
+    claraMini.addEventListener('contextmenu', (e) => e.preventDefault());
+    const claraInfo = createElement('p', 'idsq-clara-info');
+    claraInfo.innerHTML = '<span class="idsq-clara-info-name">Clara</span> · Interior Design Expert';
+    claraWrapper.appendChild(claraMini);
+    claraWrapper.appendChild(claraInfo);
+    
+    const title = createElement('h2', 'idsq-final-title');
+    title.textContent = 'Your Perfect Space is Taking Shape!';
+    
+    const description = createElement('p', 'idsq-description');
+    description.textContent = 'You\'ve selected all your materials and finishes. Let\'s bring your vision to life!';
+    
+    const cta = createElement('div', 'idsq-schedule-cta');
+    const ctaTitle = createElement('h3', 'idsq-schedule-cta-title');
+    ctaTitle.textContent = 'Ready to get started?';
+    cta.appendChild(ctaTitle);
+    
+    const buttonContainer = createElement('div', 'idsq-success-buttons');
+    const scheduleButton = createElement('a', 'idsq-button idsq-button-primary', {
+      href: 'https://www.jlcoates.com/interior-design/contact',
+      target: '_blank',
+      rel: 'noopener noreferrer',
+    });
+    scheduleButton.textContent = 'Schedule Your Consultation';
+    
+    buttonContainer.appendChild(scheduleButton);
+    
+    section.appendChild(claraWrapper);
+    section.appendChild(title);
+    section.appendChild(description);
+    section.appendChild(cta);
+    section.appendChild(buttonContainer);
+    
+    showSection(mount, section);
+  }
+
   function buildQuiz(userConfig = {}) {
     if (typeof window === 'undefined' || typeof document === 'undefined') {
       return;
@@ -3084,6 +3436,42 @@
         state.leadData = {};
         state.newsLetterSignup = false;
         renderIntro(config, mount, handlers);
+      },
+      onSelectMaterials() {
+        // Start materials selection flow
+        state.currentFlow = 'materials-selection';
+        state.materialsSelections = {};
+        state.currentCategoryIndex = 0;
+        saveState(state);
+        renderMaterialsSelection(config, mount, state, handlers);
+      },
+      onSelectMaterial(categoryId, option, roundNumber) {
+        // Track the selected option
+        const categoryState = state.materialsSelections[categoryId];
+        categoryState.winners.push(option);
+        
+        saveState(state);
+        
+        // After a selection, we need to show the continue button if needed
+        // Or auto-advance based on logic
+        if (roundNumber === 3) {
+          // This is the final round, show winners from prev rounds
+          // For now, just move to next category or finish
+          const categories = config.materialsBySpace[state.selectedSpace] || [];
+          if (state.currentCategoryIndex < categories.length - 1) {
+            state.currentCategoryIndex += 1;
+            saveState(state);
+            renderMaterialsSelection(config, mount, state, handlers);
+          } else {
+            // All categories done!
+            renderMaterialsComplete(config, mount, state, handlers);
+          }
+        } else {
+          // Next round in same category
+          categoryState.round += 1;
+          saveState(state);
+          renderMaterialsSelection(config, mount, state, handlers);
+        }
       },
     };
 
