@@ -2987,7 +2987,7 @@
   }
 
   function renderMaterialsSelection(config, mount, state, handlers) {
-    const section = createElement('section', 'idsq-materials');
+    const section = createElement('section', 'idsq-step');
     
     // Add Clara mini intro
     const claraWrapper = createElement('div', 'idsq-clara-mini-wrapper');
@@ -3001,39 +3001,44 @@
     claraInfo.innerHTML = '<span class="idsq-clara-info-name">Clara</span> · Interior Design Expert';
     claraWrapper.appendChild(claraMini);
     claraWrapper.appendChild(claraInfo);
-    
-    const title = createElement('h2', 'idsq-title');
-    const spaceName = state.selectedSpace === 'bathroom' ? 'Bathroom' : state.selectedSpace === 'kitchen' ? 'Kitchen' : 'Space';
-    title.textContent = `Let's select materials for your ${spaceName}`;
-    
-    const description = createElement('p', 'idsq-description');
-    description.textContent = `I'll help you choose the perfect materials and finishes for your ${state.finalStyle.styleName} ${spaceName.toLowerCase()}.`;
+    section.appendChild(claraWrapper);
     
     const categories = config.materialsBySpace[state.selectedSpace] || [];
     
     if (categories.length === 0) {
       // No materials for this space
-      const noMaterials = createElement('p', 'idsq-description');
-      noMaterials.textContent = 'Materials selection is not available for this space yet.';
-      section.appendChild(claraWrapper);
+      const title = createElement('h2', 'idsq-title');
+      title.textContent = 'Materials selection is not available for this space yet.';
       section.appendChild(title);
-      section.appendChild(description);
-      section.appendChild(noMaterials);
       showSection(mount, section);
       return;
     }
     
     const currentCategory = categories[state.currentCategoryIndex || 0];
     
-    // Show current category and progress
-    const categoryInfo = createElement('div', 'idsq-category-info');
-    const categoryTitle = createElement('h3', 'idsq-category-title');
-    categoryTitle.textContent = currentCategory.name;
-    categoryInfo.appendChild(categoryTitle);
+    // Dynamic title based on space and category
+    const spaceName = state.selectedSpace === 'bathroom' ? 'bathroom' : 
+                      state.selectedSpace === 'kitchen' ? 'kitchen' : 'space';
+    const title = createElement('h2', 'idsq-title');
+    title.textContent = `Which ${currentCategory.name.toLowerCase()} speaks to you for your ${spaceName}?`;
+    section.appendChild(title);
     
-    const progress = createElement('p', 'idsq-progress');
-    progress.textContent = `${state.currentCategoryIndex + 1} of ${categories.length}`;
-    categoryInfo.appendChild(progress);
+    // Progress tracker
+    const progress = createElement('div', 'idsq-progress-bar');
+    progress.innerHTML = `<strong>${currentCategory.name}</strong> · Category ${state.currentCategoryIndex + 1} of ${categories.length}`;
+    section.appendChild(progress);
+    
+    // Add helpful instruction text
+    const instruction = createElement('p', 'idsq-instruction');
+    const instructionVariants = [
+      'Trust your intuition—which image speaks to you?',
+      'Follow your gut—what catches your eye?',
+      'Go with your first instinct—which calls to you?',
+      'What draws you in? Choose what feels right.'
+    ];
+    const instructionIndex = state.currentCategoryIndex % instructionVariants.length;
+    instruction.textContent = instructionVariants[instructionIndex];
+    section.appendChild(instruction);
     
     // Initialize round tracking for this category
     if (!state.materialsSelections[currentCategory.id]) {
@@ -3046,60 +3051,117 @@
     const categoryState = state.materialsSelections[currentCategory.id];
     const options = generateMaterialOptions(currentCategory.id, state.finalStyle.styleId, categoryState.round);
     
+    // Images grid matching quiz format
     const grid = createElement('div', 'idsq-options-grid');
     options.forEach((option) => {
-      const card = createElement('div', 'idsq-option-card');
-      const img = createElement('img', 'idsq-option-image', {
+      const card = createElement('button', 'idsq-option-card', {
+        type: 'button',
+      });
+      card.addEventListener('click', () => {
+        handlers.onSelectMaterial(currentCategory.id, option, categoryState.round);
+      });
+      
+      const image = createElement('img', 'idsq-option-image', {
         src: option.imageUrl,
         alt: option.name,
         loading: 'lazy',
         draggable: 'false',
       });
-      img.addEventListener('contextmenu', (e) => e.preventDefault());
+      image.addEventListener('contextmenu', (e) => e.preventDefault());
       
-      const label = createElement('span', 'idsq-option-label');
-      label.textContent = option.name;
-      
-      card.appendChild(img);
-      card.appendChild(label);
-      card.addEventListener('click', () => {
-        card.classList.add('selected');
-        setTimeout(() => {
-          handlers.onSelectMaterial(currentCategory.id, option, categoryState.round);
-        }, 300);
-      });
-      
+      // No labels/captions - just images like the quiz
+      card.appendChild(image);
       grid.appendChild(card);
     });
-    
-    const continueButton = createElement('button', 'idsq-button idsq-button-primary');
-    continueButton.style.display = 'none';
-    continueButton.textContent = 'Continue →';
-    continueButton.addEventListener('click', () => {
-      if (categoryState.round === 3) {
-        // Move to next category or finish
-        if (state.currentCategoryIndex < categories.length - 1) {
-          state.currentCategoryIndex += 1;
-          saveState(state);
-          renderMaterialsSelection(config, mount, state, handlers);
-        } else {
-          // All categories done!
-          renderMaterialsComplete(config, mount, state, handlers);
-        }
-      } else {
-        // Next round in same category
-        categoryState.round += 1;
-        saveState(state);
-        renderMaterialsSelection(config, mount, state, handlers);
-      }
-    });
-    
-    section.appendChild(claraWrapper);
-    section.appendChild(title);
-    section.appendChild(description);
-    section.appendChild(categoryInfo);
     section.appendChild(grid);
-    section.appendChild(continueButton);
+    
+    // Navigation matching quiz format
+    const navigation = createElement('div', 'idsq-step-navigation');
+    
+    // Restart Materials button
+    const restartButton = createElement('button', 'idsq-button idsq-button-secondary idsq-restart-btn');
+    restartButton.textContent = 'Restart Materials';
+    restartButton.addEventListener('click', handlers.onRestartMaterials);
+    navigation.appendChild(restartButton);
+    
+    // Spacer
+    const spacer = createElement('div', 'idsq-step-spacer');
+    navigation.appendChild(spacer);
+    
+    // Back button (only show if not on first category and first round)
+    if (state.currentCategoryIndex > 0 || categoryState.round > 1) {
+      const backButton = createElement('button', 'idsq-button idsq-button-secondary');
+      backButton.textContent = '← Previous';
+      backButton.addEventListener('click', () => {
+        handlers.onGoBackMaterial();
+      });
+      navigation.appendChild(backButton);
+    }
+    
+    section.appendChild(navigation);
+    
+    showSection(mount, section);
+  }
+
+  function renderMaterialReview(config, mount, state, handlers) {
+    const section = createElement('section', 'idsq-step');
+    
+    // Clara intro
+    const claraWrapper = createElement('div', 'idsq-clara-mini-wrapper');
+    const claraMini = createElement('img', 'idsq-clara-mini', {
+      src: config.copy.claraProfileUrl,
+      alt: 'Clara',
+      draggable: 'false',
+    });
+    claraMini.addEventListener('contextmenu', (e) => e.preventDefault());
+    const claraInfo = createElement('p', 'idsq-clara-info');
+    claraInfo.innerHTML = '<span class="idsq-clara-info-name">Clara</span> · Interior Design Expert';
+    claraWrapper.appendChild(claraMini);
+    claraWrapper.appendChild(claraInfo);
+    section.appendChild(claraWrapper);
+    
+    const currentCategory = config.materialsBySpace[state.selectedSpace][state.currentCategoryIndex];
+    const categoryState = state.materialsSelections[currentCategory.id];
+    
+    const title = createElement('h2', 'idsq-title');
+    const spaceName = state.selectedSpace === 'bathroom' ? 'bathroom' : 
+                      state.selectedSpace === 'kitchen' ? 'kitchen' : 'space';
+    title.textContent = `Review your ${currentCategory.name.toLowerCase()} selection for your ${spaceName}`;
+    section.appendChild(title);
+    
+    // Show final selection with larger image
+    const imageContainer = createElement('div', 'idsq-final-single-container');
+    const img = createElement('img', 'idsq-final-single-image', {
+      src: categoryState.finalSelection.imageUrl,
+      alt: categoryState.finalSelection.name,
+      loading: 'lazy',
+      draggable: 'false',
+    });
+    img.addEventListener('contextmenu', (e) => e.preventDefault());
+    imageContainer.appendChild(img);
+    section.appendChild(imageContainer);
+    
+    // Navigation
+    const navigation = createElement('div', 'idsq-step-navigation');
+    
+    const reselectButton = createElement('button', 'idsq-button idsq-button-secondary');
+    reselectButton.textContent = '← Reselect';
+    reselectButton.addEventListener('click', () => {
+      handlers.onReselectMaterial();
+    });
+    navigation.appendChild(reselectButton);
+    
+    const spacer = createElement('div', 'idsq-step-spacer');
+    navigation.appendChild(spacer);
+    
+    const confirmButton = createElement('button', 'idsq-button idsq-button-primary');
+    confirmButton.textContent = 'Confirm & Continue →';
+    confirmButton.addEventListener('click', () => {
+      handlers.onConfirmMaterialSelection();
+    });
+    navigation.appendChild(confirmButton);
+    
+    section.appendChild(navigation);
     
     showSection(mount, section);
   }
@@ -3449,29 +3511,72 @@
         // Track the selected option
         const categoryState = state.materialsSelections[categoryId];
         categoryState.winners.push(option);
-        
         saveState(state);
         
-        // After a selection, we need to show the continue button if needed
-        // Or auto-advance based on logic
-        if (roundNumber === 3) {
-          // This is the final round, show winners from prev rounds
-          // For now, just move to next category or finish
-          const categories = config.materialsBySpace[state.selectedSpace] || [];
-          if (state.currentCategoryIndex < categories.length - 1) {
-            state.currentCategoryIndex += 1;
-            saveState(state);
-            renderMaterialsSelection(config, mount, state, handlers);
-          } else {
-            // All categories done!
-            renderMaterialsComplete(config, mount, state, handlers);
-          }
-        } else {
-          // Next round in same category
+        if (roundNumber === 1 || roundNumber === 2) {
+          // Round 1 or 2: move to next round
           categoryState.round += 1;
           saveState(state);
           renderMaterialsSelection(config, mount, state, handlers);
+        } else if (roundNumber === 3) {
+          // Final round: show review screen
+          categoryState.finalSelection = option;
+          saveState(state);
+          renderMaterialReview(config, mount, state, handlers);
         }
+      },
+      onGoBackMaterial() {
+        const currentCategoryId = config.materialsBySpace[state.selectedSpace][state.currentCategoryIndex].id;
+        const categoryState = state.materialsSelections[currentCategoryId];
+        
+        if (categoryState.round > 1) {
+          // Go back to previous round in same category
+          categoryState.round -= 1;
+          categoryState.winners.pop(); // Remove last selection
+          saveState(state);
+          renderMaterialsSelection(config, mount, state, handlers);
+        } else if (state.currentCategoryIndex > 0) {
+          // Go back to previous category
+          state.currentCategoryIndex -= 1;
+          const prevCategoryId = config.materialsBySpace[state.selectedSpace][state.currentCategoryIndex].id;
+          const prevCategoryState = state.materialsSelections[prevCategoryId];
+          if (prevCategoryState && prevCategoryState.round > 1) {
+            prevCategoryState.round -= 1;
+            prevCategoryState.winners.pop();
+          }
+          saveState(state);
+          renderMaterialsSelection(config, mount, state, handlers);
+        }
+      },
+      onRestartMaterials() {
+        // Clear only materials selections, keep quiz results
+        state.materialsSelections = {};
+        state.currentCategoryIndex = 0;
+        state.currentFlow = 'materials-selection';
+        saveState(state);
+        renderMaterialsSelection(config, mount, state, handlers);
+      },
+      onConfirmMaterialSelection() {
+        // User confirmed their final selection, move to next category
+        const categories = config.materialsBySpace[state.selectedSpace] || [];
+        if (state.currentCategoryIndex < categories.length - 1) {
+          state.currentCategoryIndex += 1;
+          saveState(state);
+          renderMaterialsSelection(config, mount, state, handlers);
+        } else {
+          // All categories done!
+          renderMaterialsComplete(config, mount, state, handlers);
+        }
+      },
+      onReselectMaterial() {
+        // User wants to go back and reselect this category
+        const currentCategoryId = config.materialsBySpace[state.selectedSpace][state.currentCategoryIndex].id;
+        state.materialsSelections[currentCategoryId] = {
+          round: 1,
+          winners: [],
+        };
+        saveState(state);
+        renderMaterialsSelection(config, mount, state, handlers);
       },
     };
 
@@ -3489,6 +3594,8 @@
       } else if (flow === 'quiz') {
         const steps = getStepsForSpace(state.selectedSpace);
         renderStep(config, mount, state, handlers, steps);
+      } else if (flow === 'materials-selection') {
+        renderMaterialsSelection(config, mount, state, handlers);
       } else {
         renderIntro(config, mount, handlers);
       }
