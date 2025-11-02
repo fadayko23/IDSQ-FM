@@ -3193,11 +3193,8 @@
         type: 'button',
       });
       card.addEventListener('click', () => {
-        // Select this type
-        state.projectContext.projectType = type.id;
-        saveState(state);
-        // Re-render to show selected state
-        renderProjectType(config, mount, state, handlers);
+        // Select this type via handler
+        handlers.onSelectProjectType(type.id);
       });
       
       // Check if selected
@@ -3239,12 +3236,7 @@
       const continueButton = createElement('button', 'idsq-button idsq-button-primary');
       continueButton.textContent = 'Continue →';
       continueButton.addEventListener('click', () => {
-        // Move to expert questions (skip first question since we just did project-type)
-        state.currentFlow = 'project-context';
-        state.currentExpert = 'aria';
-        state.currentExpertQuestion = 1;
-        saveState(state);
-        renderExpertQuestion(config, mount, state, handlers);
+        handlers.onContinueFromProjectType();
       });
       navigation.appendChild(continueButton);
     }
@@ -3336,9 +3328,7 @@
       const backButton = createElement('button', 'idsq-button idsq-button-secondary');
       backButton.textContent = '← Previous';
       backButton.addEventListener('click', () => {
-        state.currentExpertQuestion -= 1;
-        saveState(state);
-        renderExpertQuestion(config, mount, state, handlers);
+        handlers.onGoBackFromExpertQuestion();
       });
       navigation.appendChild(backButton);
     }
@@ -3912,6 +3902,26 @@
         }
         saveState(state);
         renderProjectType(config, mount, state, handlers);
+      },
+      onSelectProjectType(typeId) {
+        // Save project type selection
+        state.projectContext.projectType = typeId;
+        saveState(state);
+        // Re-render to show selected state
+        renderProjectType(config, mount, state, handlers);
+      },
+      onContinueFromProjectType() {
+        // Move to expert questions (skip first question since we just did project-type)
+        state.currentFlow = 'project-context';
+        state.currentExpert = 'aria';
+        state.currentExpertQuestion = 1;
+        saveState(state);
+        renderExpertQuestion(config, mount, state, handlers);
+      },
+      onGoBackFromExpertQuestion() {
+        state.currentExpertQuestion -= 1;
+        saveState(state);
+        renderExpertQuestion(config, mount, state, handlers);
       },
       onSelectExpertAnswer(expert, questionId, answer) {
         // Save answer
