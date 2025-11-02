@@ -3985,8 +3985,12 @@
         // Save project type selection
         state.projectContext.projectType = typeId;
         saveState(state);
-        // Re-render to show selected state
-        renderProjectType(config, mount, state, handlers);
+        // Auto-advance to next question like quiz does
+        state.currentFlow = 'project-context';
+        state.currentExpert = 'aria';
+        state.currentExpertQuestion = 1;
+        saveState(state);
+        renderExpertQuestion(config, mount, state, handlers);
       },
       onContinueFromProjectType() {
         // Move to expert questions (skip first question since we just did project-type)
