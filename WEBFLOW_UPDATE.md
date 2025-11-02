@@ -1,10 +1,10 @@
-# Update Webflow CDN URL to Latest Version
+# Update Webflow CDN URL to Latest Version (IDSQ-FM Repository)
 
 The jsDelivr CDN is caching the old `@main` version. You need to update your Webflow Embed code to use the latest commit hash to force a fresh cache.
 
 ## Current Webflow Embed Code (Uses Cached `@main`):
 ```html
-<script src="https://cdn.jsdelivr.net/gh/fadayko23/IDSQ@main/src/idsq-quiz.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/fadayko23/IDSQ-FM@main/src/idsq-quiz.min.js"></script>
 <script>
 window.IDSQ.buildQuiz({
   webhook: {
@@ -17,9 +17,9 @@ window.IDSQ.buildQuiz({
 </script>
 ```
 
-## Updated Webflow Embed Code (Latest Commit `41343b2`):
+## Updated Webflow Embed Code (Latest Commit `aa329bd` - Materials Selection Feature):
 ```html
-<script src="https://cdn.jsdelivr.net/gh/fadayko23/IDSQ@41343b2/src/idsq-quiz.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/fadayko23/IDSQ-FM@aa329bd/src/idsq-quiz.min.js"></script>
 <script>
 window.IDSQ.buildQuiz({
   webhook: {
@@ -33,16 +33,24 @@ window.IDSQ.buildQuiz({
 ```
 
 ## What Changed:
-- `@main` → `@41343b2` 
-- This forces jsDelivr to fetch the latest commit, bypassing cache
+- Repository: `IDSQ` → `IDSQ-FM` (new repository for material selections feature)
+- Commit: `@main` → `@aa329bd`
+- Feature: Added "Select Materials" continuation with 3-round selection process for bathroom and kitchen spaces
 
 ## Instructions:
 1. Open your Webflow project
 2. Find the Embed element with the quiz code
-3. Replace `@main` with `@41343b2` in the CDN URL
+3. Replace the repository name and commit hash
 4. Publish the site
-5. Test the quiz - all text should now be styled correctly with Webflow's `--IDSQ-Font` variable
+5. Test the quiz - complete the style quiz and try the new "Select Materials" button!
+
+## Features in This Update:
+- ✨ New "Select Materials" button on quiz results screen
+- 🛁 Bathroom material categories: flooring, backsplash, countertops, faucet, cabinet styles, tub, toilet, showerhead, paint
+- 🍳 Kitchen material categories: flooring, backsplash, countertops, faucet, cabinet styles, appliances, paint
+- 🎯 3-round selection process per category with Clara guidance
+- 📸 Demo Unsplash images (ready to replace with Airtable)
 
 ## Future Updates:
-Each time we make CSS changes, you'll need to update the commit hash in Webflow OR wait 24 hours for jsDelivr's `@main` cache to expire.
+Each time we make changes, you'll need to update the commit hash in Webflow OR wait 24 hours for jsDelivr's `@main` cache to expire.
 
