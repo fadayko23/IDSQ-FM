@@ -3091,6 +3091,84 @@
     return options;
   }
 
+  function renderExpertQuestion(config, mount, state, handlers) {
+    const section = createElement('section', 'idsq-step');
+    
+    // Get current expert and their questions
+    const expert = state.currentExpert;
+    const expertConfig = config.expertQuestions[expert];
+    const questionIndex = state.currentExpertQuestion || 0;
+    const question = expertConfig.questions[questionIndex];
+    
+    // Get the correct avatar based on expert
+    const avatars = {
+      aria: config.copy.ariaProfileUrl,
+      clara: config.copy.claraProfileUrl,
+      mason: config.copy.masonProfileUrl,
+    };
+    
+    // Add expert mini intro
+    const expertWrapper = createElement('div', 'idsq-clara-mini-wrapper');
+    const expertMini = createElement('img', 'idsq-clara-mini', {
+      src: avatars[expert],
+      alt: expert === 'aria' ? 'Aria' : expert === 'mason' ? 'Mason' : 'Clara',
+      draggable: 'false',
+    });
+    expertMini.addEventListener('contextmenu', (e) => e.preventDefault());
+    const expertInfo = createElement('p', 'idsq-clara-info');
+    const expertNames = {
+      aria: 'Aria Planes · Architect',
+      clara: 'Clara · Interior Design Expert',
+      mason: 'Mason Grant · General Contractor',
+    };
+    expertInfo.innerHTML = `<span class="idsq-clara-info-name">${expert === 'aria' ? 'Aria' : expert === 'mason' ? 'Mason' : 'Clara'}</span> · ${expert === 'aria' ? 'Architect' : expert === 'mason' ? 'General Contractor' : 'Interior Design Expert'}`;
+    expertWrapper.appendChild(expertMini);
+    expertWrapper.appendChild(expertInfo);
+    section.appendChild(expertWrapper);
+    
+    // Title - use intro text on first question, prompt on others
+    const title = createElement('h2', 'idsq-title');
+    if (questionIndex === 0) {
+      title.textContent = expertConfig.intro;
+    } else {
+      title.textContent = question.prompt;
+    }
+    section.appendChild(title);
+    
+    // Description if available
+    if (question.description) {
+      const description = createElement('p', 'idsq-description');
+      description.textContent = question.description;
+      section.appendChild(description);
+    }
+    
+    // Show options
+    if (question.options) {
+      const grid = createElement('div', 'idsq-options-grid');
+      question.options.forEach((option) => {
+        const card = createElement('button', 'idsq-option-card', {
+          type: 'button',
+        });
+        card.textContent = option.name;
+        card.addEventListener('click', () => {
+          handlers.onSelectExpertAnswer(expert, question.id, option);
+        });
+        grid.appendChild(card);
+      });
+      section.appendChild(grid);
+    }
+    
+    // Navigation
+    const navigation = createElement('div', 'idsq-step-navigation');
+    const restartButton = createElement('button', 'idsq-button idsq-button-secondary idsq-restart-btn');
+    restartButton.textContent = 'Start Over';
+    restartButton.addEventListener('click', handlers.onRestart);
+    navigation.appendChild(restartButton);
+    section.appendChild(navigation);
+    
+    showSection(mount, section);
+  }
+
   function renderMaterialsSelection(config, mount, state, handlers) {
     const section = createElement('section', 'idsq-step');
     
@@ -3121,11 +3199,11 @@
     
     const currentCategory = categories[state.currentCategoryIndex || 0];
     
-    // Dynamic title based on space and category
+    // Dynamic title based on space and category - conversational
     const spaceName = state.selectedSpace === 'bathroom' ? 'bathroom' : 
                       state.selectedSpace === 'kitchen' ? 'kitchen' : 'space';
     const title = createElement('h2', 'idsq-title');
-    title.textContent = `Which ${currentCategory.name.toLowerCase()} speaks to you for your ${spaceName}?`;
+    title.textContent = `What would you prefer for your ${spaceName} ${currentCategory.name.toLowerCase()}?`;
     section.appendChild(title);
     
     // Progress tracker
@@ -3405,12 +3483,14 @@
       }
     }
 
-    // Test mode: skip quiz and start at materials selection
+    // Test mode: skip quiz and start at project context
     if (config.testMode && config.testData) {
       Object.assign(state, config.testData);
-      state.currentFlow = 'materials-selection';
+      state.currentFlow = 'project-context';
+      state.projectContext = {};
+      state.currentExpert = 'aria';
+      state.currentExpertQuestion = 0;
       state.materialsSelections = {};
-      state.currentCategoryIndex = 0;
       saveState(state);
     }
 
@@ -3614,12 +3694,50 @@
         renderIntro(config, mount, handlers);
       },
       onSelectMaterials() {
-        // Start materials selection flow
-        state.currentFlow = 'materials-selection';
+        // Start expert-guided flow
+        state.currentFlow = 'project-context';
+        state.projectContext = {};
+        state.currentExpert = 'aria';
+        state.currentExpertQuestion = 0;
         state.materialsSelections = {};
-        state.currentCategoryIndex = 0;
         saveState(state);
-        renderMaterialsSelection(config, mount, state, handlers);
+        renderExpertQuestion(config, mount, state, handlers);
+      },
+      onSelectExpertAnswer(expert, questionId, answer) {
+        // Save answer
+        if (!state.projectContext[expert]) {
+          state.projectContext[expert] = {};
+        }
+        state.projectContext[expert][questionId] = answer;
+        
+        // Check if more questions for this expert
+        const expertConfig = config.expertQuestions[expert];
+        const questionIndex = state.currentExpertQuestion || 0;
+        
+        if (questionIndex < expertConfig.questions.length - 1) {
+          // More questions for this expert
+          state.currentExpertQuestion += 1;
+          saveState(state);
+          renderExpertQuestion(config, mount, state, handlers);
+        } else {
+          // Done with this expert, move to next
+          const expertOrder = ['aria', 'clara', 'mason'];
+          const currentIndex = expertOrder.indexOf(expert);
+          
+          if (currentIndex < expertOrder.length - 1) {
+            // Move to next expert
+            state.currentExpert = expertOrder[currentIndex + 1];
+            state.currentExpertQuestion = 0;
+            saveState(state);
+            renderExpertQuestion(config, mount, state, handlers);
+          } else {
+            // All experts done, start materials selection
+            state.currentFlow = 'materials-selection';
+            state.currentCategoryIndex = 0;
+            saveState(state);
+            renderMaterialsSelection(config, mount, state, handlers);
+          }
+        }
       },
       onSelectMaterial(categoryId, option, roundNumber) {
         // Track the selected option
@@ -3708,6 +3826,8 @@
       } else if (flow === 'quiz') {
         const steps = getStepsForSpace(state.selectedSpace);
         renderStep(config, mount, state, handlers, steps);
+      } else if (flow === 'project-context') {
+        renderExpertQuestion(config, mount, state, handlers);
       } else if (flow === 'materials-selection') {
         renderMaterialsSelection(config, mount, state, handlers);
       } else {
