@@ -3091,6 +3091,150 @@
     return options;
   }
 
+  function renderExpertIntro(config, mount, state, handlers) {
+    const section = createElement('section', 'idsq-step');
+    
+    // Add Clara intro
+    const claraWrapper = createElement('div', 'idsq-clara-mini-wrapper');
+    const claraMini = createElement('img', 'idsq-clara-mini', {
+      src: config.copy.claraProfileUrl,
+      alt: 'Clara',
+      draggable: 'false',
+    });
+    claraMini.addEventListener('contextmenu', (e) => e.preventDefault());
+    const claraInfo = createElement('p', 'idsq-clara-info');
+    claraInfo.innerHTML = '<span class="idsq-clara-info-name">Clara</span> · Interior Design Expert';
+    claraWrapper.appendChild(claraMini);
+    claraWrapper.appendChild(claraInfo);
+    section.appendChild(claraWrapper);
+    
+    // Title
+    const title = createElement('h2', 'idsq-title');
+    title.textContent = 'Welcome to your expert team!';
+    section.appendChild(title);
+    
+    const description = createElement('p', 'idsq-description');
+    description.textContent = 'Three specialists will guide you through your project, each bringing their unique expertise to help bring your vision to life.';
+    section.appendChild(description);
+    
+    // Show all three experts
+    const experts = [
+      { name: 'Clara', avatar: config.copy.claraProfileUrl, title: 'Interior Design Expert', desc: 'Refines your aesthetic and curates finishes to match your style' },
+      { name: 'Aria', avatar: config.copy.ariaProfileUrl, title: 'Architect', desc: 'Optimizes layout, lighting, and structure for your space' },
+      { name: 'Mason', avatar: config.copy.masonProfileUrl, title: 'General Contractor', desc: 'Ensures durability, practicality, and smart construction' },
+    ];
+    
+    const expertsGrid = createElement('div', 'idsq-options-grid');
+    experts.forEach((expert) => {
+      const card = createElement('div', 'idsq-expert-card');
+      const avatar = createElement('img', 'idsq-expert-avatar', {
+        src: expert.avatar,
+        alt: expert.name,
+        draggable: 'false',
+      });
+      avatar.addEventListener('contextmenu', (e) => e.preventDefault());
+      const name = createElement('h3', 'idsq-expert-name');
+      name.textContent = expert.name;
+      const role = createElement('p', 'idsq-expert-role');
+      role.textContent = expert.title;
+      const desc = createElement('p', 'idsq-expert-desc');
+      desc.textContent = expert.desc;
+      
+      card.appendChild(avatar);
+      card.appendChild(name);
+      card.appendChild(role);
+      card.appendChild(desc);
+      expertsGrid.appendChild(card);
+    });
+    section.appendChild(expertsGrid);
+    
+    // Navigation
+    const navigation = createElement('div', 'idsq-step-navigation');
+    const restartButton = createElement('button', 'idsq-button idsq-button-secondary idsq-restart-btn');
+    restartButton.textContent = 'Start Over';
+    restartButton.addEventListener('click', handlers.onRestart);
+    navigation.appendChild(restartButton);
+    
+    const spacer = createElement('div', 'idsq-step-spacer');
+    navigation.appendChild(spacer);
+    
+    const continueButton = createElement('button', 'idsq-button idsq-button-primary');
+    continueButton.textContent = 'Let\'s Get Started →';
+    continueButton.addEventListener('click', () => {
+      handlers.onContinueFromExpertIntro();
+    });
+    navigation.appendChild(continueButton);
+    
+    section.appendChild(navigation);
+    
+    showSection(mount, section);
+  }
+
+  function renderProjectType(config, mount, state, handlers) {
+    const section = createElement('section', 'idsq-step');
+    
+    // Add Aria intro
+    const expertWrapper = createElement('div', 'idsq-clara-mini-wrapper');
+    const expertMini = createElement('img', 'idsq-clara-mini', {
+      src: config.copy.ariaProfileUrl,
+      alt: 'Aria',
+      draggable: 'false',
+    });
+    expertMini.addEventListener('contextmenu', (e) => e.preventDefault());
+    const expertInfo = createElement('p', 'idsq-clara-info');
+    expertInfo.innerHTML = '<span class="idsq-clara-info-name">Aria</span> · Architect';
+    expertWrapper.appendChild(expertMini);
+    expertWrapper.appendChild(expertInfo);
+    section.appendChild(expertWrapper);
+    
+    // Title
+    const title = createElement('h2', 'idsq-title');
+    title.textContent = 'Are you designing for a new home or a remodel?';
+    section.appendChild(title);
+    
+    const description = createElement('p', 'idsq-description');
+    description.textContent = 'This helps us understand the scope of your project.';
+    section.appendChild(description);
+    
+    // Show project type options
+    const grid = createElement('div', 'idsq-options-grid');
+    config.projectContext.type.forEach((type) => {
+      const card = createElement('button', 'idsq-option-card', {
+        type: 'button',
+      });
+      card.addEventListener('click', () => {
+        state.projectContext.projectType = type.id;
+        saveState(state);
+        // Move to expert questions
+        state.currentFlow = 'project-context';
+        state.currentExpert = 'aria';
+        state.currentExpertQuestion = 0;
+        saveState(state);
+        renderExpertQuestion(config, mount, state, handlers);
+      });
+      
+      const name = createElement('h3', 'idsq-space-name');
+      name.textContent = type.name;
+      const desc = createElement('p', 'idsq-space-desc');
+      desc.textContent = type.description;
+      
+      card.appendChild(name);
+      card.appendChild(desc);
+      grid.appendChild(card);
+    });
+    section.appendChild(grid);
+    
+    // Navigation
+    const navigation = createElement('div', 'idsq-step-navigation');
+    const restartButton = createElement('button', 'idsq-button idsq-button-secondary idsq-restart-btn');
+    restartButton.textContent = 'Start Over';
+    restartButton.addEventListener('click', handlers.onRestart);
+    navigation.appendChild(restartButton);
+    section.appendChild(navigation);
+    
+    showSection(mount, section);
+  }
+
   function renderExpertQuestion(config, mount, state, handlers) {
     const section = createElement('section', 'idsq-step');
     
@@ -3164,6 +3308,22 @@
     restartButton.textContent = 'Start Over';
     restartButton.addEventListener('click', handlers.onRestart);
     navigation.appendChild(restartButton);
+    
+    const spacer = createElement('div', 'idsq-step-spacer');
+    navigation.appendChild(spacer);
+    
+    // Back button if not first question
+    if (questionIndex > 0) {
+      const backButton = createElement('button', 'idsq-button idsq-button-secondary');
+      backButton.textContent = '← Previous';
+      backButton.addEventListener('click', () => {
+        state.currentExpertQuestion -= 1;
+        saveState(state);
+        renderExpertQuestion(config, mount, state, handlers);
+      });
+      navigation.appendChild(backButton);
+    }
+    
     section.appendChild(navigation);
     
     showSection(mount, section);
@@ -3483,10 +3643,10 @@
       }
     }
 
-    // Test mode: skip quiz and start at project context
+    // Test mode: skip quiz and start at expert intro
     if (config.testMode && config.testData) {
       Object.assign(state, config.testData);
-      state.currentFlow = 'project-context';
+      state.currentFlow = 'expert-intro';
       state.projectContext = {};
       state.currentExpert = 'aria';
       state.currentExpertQuestion = 0;
@@ -3694,14 +3854,20 @@
         renderIntro(config, mount, handlers);
       },
       onSelectMaterials() {
-        // Start expert-guided flow
-        state.currentFlow = 'project-context';
+        // Start expert-guided flow with intro
+        state.currentFlow = 'expert-intro';
         state.projectContext = {};
         state.currentExpert = 'aria';
         state.currentExpertQuestion = 0;
         state.materialsSelections = {};
         saveState(state);
-        renderExpertQuestion(config, mount, state, handlers);
+        renderExpertIntro(config, mount, state, handlers);
+      },
+      onContinueFromExpertIntro() {
+        // Show project type selection
+        state.currentFlow = 'project-type';
+        saveState(state);
+        renderProjectType(config, mount, state, handlers);
       },
       onSelectExpertAnswer(expert, questionId, answer) {
         // Save answer
@@ -3826,6 +3992,10 @@
       } else if (flow === 'quiz') {
         const steps = getStepsForSpace(state.selectedSpace);
         renderStep(config, mount, state, handlers, steps);
+      } else if (flow === 'expert-intro') {
+        renderExpertIntro(config, mount, state, handlers);
+      } else if (flow === 'project-type') {
+        renderProjectType(config, mount, state, handlers);
       } else if (flow === 'project-context') {
         renderExpertQuestion(config, mount, state, handlers);
       } else if (flow === 'materials-selection') {
