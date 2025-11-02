@@ -3138,7 +3138,7 @@
         src: expert.avatar,
         alt: expert.name,
         draggable: 'false',
-        style: 'width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 16px;',
+        style: 'width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 16px 16px 0 0;',
       });
       avatar.addEventListener('contextmenu', (e) => e.preventDefault());
       
