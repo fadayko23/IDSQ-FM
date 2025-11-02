@@ -14,7 +14,9 @@
       introTitle: 'Interior Design Style Quiz',
       introDescription: 'Hi! I\'m Clara, your interior design expert from JL Coates.',
       introDescriptionLine2: 'Let me guide you through a personalized quiz to discover your unique design style and curate the perfect space for you.',
-      claraProfileUrl: 'https://cdn.prod.website-files.com/642ba20158f55771b829e704/6901933410173c0b15007271_Clara%20Headshot.webp', // Clara's circular profile picture
+      claraProfileUrl: 'https://cdn.prod.website-files.com/642ba20158f55771b829e704/6901933410173c0b15007271_Clara%20Headshot.webp',
+      masonProfileUrl: 'https://cdn.prod.website-files.com/642ba20158f55771b829e704/6907980ac46040c9b1e251da_Mason%20Grant%20Headshot.webp',
+      ariaProfileUrl: 'https://cdn.prod.website-files.com/642ba20158f55771b829e704/690798097fbd8a82d468e098_Aria%20Planes%20Headshot.webp',
       startButton: 'Start Quiz',
       namePromptTitle: 'Let\'s get started!',
       namePromptDescription: 'I\'d love to personalize this experience for you. What\'s your first name?',
@@ -655,6 +657,109 @@
             'https://s3.amazonaws.com/webflow-prod-assets/642ba20158f55771b829e704/69056578654b10c032d04865_img_desert_modern_whole_home_2.webp'
           ]
         },
+      },
+    },
+    projectContext: {
+      type: [
+        { id: 'new-home', name: 'New Home', description: 'Building from scratch' },
+        { id: 'remodel', name: 'Remodel', description: 'Updating existing space' },
+      ],
+      footprint: [
+        { id: 'change', name: 'Yes, footprint will change' },
+        { id: 'no-change', name: 'No, keeping same footprint' },
+      ],
+      plans: [
+        { id: 'has-plans', name: 'Yes, I have plans/blueprints' },
+        { id: 'no-plans', name: 'No plans yet' },
+      ],
+      spaceSpecific: {
+        bathroom: [
+          { id: 'replace-tub', name: 'Replace tub', options: [
+            { id: 'yes', name: 'Yes' },
+            { id: 'no', name: 'No' },
+            { id: 'not-sure', name: 'Not Sure' }
+          ]},
+          { id: 'shower-type', name: 'Shower type', options: [
+            { id: 'walk-in', name: 'Walk-in Shower' },
+            { id: 'bathtub-combo', name: 'Bathtub/Shower Combo' },
+            { id: 'separate', name: 'Separate Tub & Shower' }
+          ]},
+        ],
+        kitchen: [
+          { id: 'layout-change', name: 'Change layout', options: [
+            { id: 'yes', name: 'Yes' },
+            { id: 'no', name: 'No' },
+            { id: 'cosmetic', name: 'Cosmetic Only' }
+          ]},
+        ],
+      },
+    },
+    expertQuestions: {
+      aria: {
+        intro: 'Let\'s make sure the design and construction details align with your space. I\'ll identify where we can optimize layout, lighting, or structure before you choose materials.',
+        questions: [
+          {
+            id: 'project-type',
+            prompt: 'Are you designing for a new home or a remodel?',
+            description: 'This helps us understand the scope of your project.',
+          },
+          {
+            id: 'footprint',
+            prompt: 'Will the footprint of your space change?',
+            description: 'Understanding layout changes helps optimize structural and spatial planning.',
+          },
+          {
+            id: 'plans',
+            prompt: 'Do you already have plans or blueprints for this space?',
+            description: 'Having existing plans helps us provide more accurate recommendations.',
+          },
+        ],
+      },
+      clara: {
+        intro: 'Now that we know the project type, let\'s refine how this space should feel and function day-to-day.',
+        questions: [
+          {
+            id: 'mood',
+            prompt: 'Would you like your space to feel more spa-like and serene or bold and statement-making?',
+            options: [
+              { id: 'serene', name: 'Serene & Spa-like' },
+              { id: 'bold', name: 'Bold & Statement-making' },
+              { id: 'balanced', name: 'Balanced Mix' },
+            ],
+          },
+          {
+            id: 'materials',
+            prompt: 'Do you prefer natural materials or engineered alternatives?',
+            options: [
+              { id: 'natural', name: 'Natural (stone, wood)' },
+              { id: 'engineered', name: 'Engineered (porcelain, composite)' },
+              { id: 'mixed', name: 'Mixed Approach' },
+            ],
+          },
+        ],
+      },
+      mason: {
+        intro: 'Beautiful choices deserve smart construction. Let\'s make sure your selections are durable, practical, and aligned with your build timeline.',
+        questions: [
+          {
+            id: 'timeline',
+            prompt: 'What\'s your project timeline?',
+            options: [
+              { id: '4-6weeks', name: '4-6 weeks' },
+              { id: '2-3months', name: '2-3 months' },
+              { id: '6plus', name: '6+ months' },
+            ],
+          },
+          {
+            id: 'maintenance',
+            prompt: 'Would you like recommendations for low-maintenance materials or premium finishes?',
+            options: [
+              { id: 'low-maintenance', name: 'Low-maintenance' },
+              { id: 'premium', name: 'Premium finishes' },
+              { id: 'balanced', name: 'Balanced approach' },
+            ],
+          },
+        ],
       },
     },
     materialsBySpace: {
@@ -3298,6 +3403,15 @@
       if (urlParticipantName && !state.participantName) {
         state.participantName = urlParticipantName;
       }
+    }
+
+    // Test mode: skip quiz and start at materials selection
+    if (config.testMode && config.testData) {
+      Object.assign(state, config.testData);
+      state.currentFlow = 'materials-selection';
+      state.materialsSelections = {};
+      state.currentCategoryIndex = 0;
+      saveState(state);
     }
 
     function getStepsForSpace(spaceId) {
