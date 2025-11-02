@@ -3172,6 +3172,11 @@
   function renderProjectType(config, mount, state, handlers) {
     const section = createElement('section', 'idsq-intro');
     
+    // Ensure projectContext is initialized
+    if (!state.projectContext) {
+      state.projectContext = {};
+    }
+    
     // Title
     const title = createElement('h2', 'idsq-title');
     title.textContent = 'Are you designing for a new home or a remodel?';
