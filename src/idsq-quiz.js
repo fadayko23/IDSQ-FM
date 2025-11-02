@@ -2385,6 +2385,16 @@
         width: 100%;
         margin-top: 2rem;
       }
+      .idsq-option-grid-wrapper {
+        display: flex;
+        justify-content: center;
+        width: 100%;
+        margin-top: 2rem;
+      }
+      .idsq-option-grid-wrapper > .idsq-option-grid {
+        max-width: 600px;
+        width: 100%;
+      }
       .idsq-final-grid {
         grid-template-columns: repeat(2, 1fr);
         max-width: 900px;
@@ -3182,6 +3192,7 @@
     section.appendChild(description);
     
     // Show project type options in room selection style
+    const gridWrapper = createElement('div', 'idsq-option-grid-wrapper');
     const grid = createElement('div', 'idsq-option-grid');
     config.projectContext.type.forEach((type) => {
       const card = createElement('button', 'idsq-option-card', {
@@ -3216,7 +3227,8 @@
       card.appendChild(label);
       grid.appendChild(card);
     });
-    section.appendChild(grid);
+    gridWrapper.appendChild(grid);
+    section.appendChild(gridWrapper);
     
     // Navigation
     const navigation = createElement('div', 'idsq-step-navigation');
@@ -3880,6 +3892,9 @@
       onContinueFromExpertIntro() {
         // Show project type selection
         state.currentFlow = 'project-type';
+        if (!state.projectContext) {
+          state.projectContext = {};
+        }
         saveState(state);
         renderProjectType(config, mount, state, handlers);
       },
