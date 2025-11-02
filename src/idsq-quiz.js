@@ -708,9 +708,9 @@
             prompt: 'Will the footprint of your space change?',
             description: 'Understanding layout changes helps optimize structural and spatial planning.',
             options: [
-              { id: 'yes', name: 'Yes, footprint will change' },
-              { id: 'no', name: 'No, keeping same footprint' },
-              { id: 'unsure', name: 'Not sure yet' },
+              { id: 'yes', name: 'Yes, footprint will change', icon: '🏗️' },
+              { id: 'no', name: 'No, keeping same footprint', icon: '📐' },
+              { id: 'unsure', name: 'Not sure yet', icon: '🤔' },
             ],
           },
           {
@@ -718,9 +718,9 @@
             prompt: 'Do you already have plans or blueprints for this space?',
             description: 'Having existing plans helps us provide more accurate recommendations.',
             options: [
-              { id: 'yes', name: 'Yes, I have plans' },
-              { id: 'no', name: 'No plans yet' },
-              { id: 'partial', name: 'Partial plans' },
+              { id: 'yes', name: 'Yes, I have plans', icon: '📋' },
+              { id: 'no', name: 'No plans yet', icon: '📝' },
+              { id: 'partial', name: 'Partial plans', icon: '✏️' },
             ],
           },
         ],
@@ -732,18 +732,18 @@
             id: 'mood',
             prompt: 'Would you like your space to feel more spa-like and serene or bold and statement-making?',
             options: [
-              { id: 'serene', name: 'Serene & Spa-like' },
-              { id: 'bold', name: 'Bold & Statement-making' },
-              { id: 'balanced', name: 'Balanced Mix' },
+              { id: 'serene', name: 'Serene & Spa-like', icon: '🌸' },
+              { id: 'bold', name: 'Bold & Statement-making', icon: '💥' },
+              { id: 'balanced', name: 'Balanced Mix', icon: '⚖️' },
             ],
           },
           {
             id: 'materials',
             prompt: 'Do you prefer natural materials or engineered alternatives?',
             options: [
-              { id: 'natural', name: 'Natural (stone, wood)' },
-              { id: 'engineered', name: 'Engineered (porcelain, composite)' },
-              { id: 'mixed', name: 'Mixed Approach' },
+              { id: 'natural', name: 'Natural (stone, wood)', icon: '🌿' },
+              { id: 'engineered', name: 'Engineered (porcelain, composite)', icon: '🔬' },
+              { id: 'mixed', name: 'Mixed Approach', icon: '🎨' },
             ],
           },
         ],
@@ -755,18 +755,18 @@
             id: 'timeline',
             prompt: 'What\'s your project timeline?',
             options: [
-              { id: '4-6weeks', name: '4-6 weeks' },
-              { id: '2-3months', name: '2-3 months' },
-              { id: '6plus', name: '6+ months' },
+              { id: '4-6weeks', name: '4-6 weeks', icon: '⚡' },
+              { id: '2-3months', name: '2-3 months', icon: '⏰' },
+              { id: '6plus', name: '6+ months', icon: '📅' },
             ],
           },
           {
             id: 'maintenance',
             prompt: 'Would you like recommendations for low-maintenance materials or premium finishes?',
             options: [
-              { id: 'low-maintenance', name: 'Low-maintenance' },
-              { id: 'premium', name: 'Premium finishes' },
-              { id: 'balanced', name: 'Balanced approach' },
+              { id: 'low-maintenance', name: 'Low-maintenance', icon: '✨' },
+              { id: 'premium', name: 'Premium finishes', icon: '💎' },
+              { id: 'balanced', name: 'Balanced approach', icon: '🎯' },
             ],
           },
         ],
@@ -2405,6 +2405,39 @@
         margin-left: auto;
         margin-right: auto;
       }
+      .idsq-progress-bar {
+        width: 100%;
+        margin: 2rem 0;
+        overflow-x: auto;
+      }
+      .idsq-progress-track {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        min-width: fit-content;
+        padding-bottom: 0.5rem;
+      }
+      .idsq-progress-marker {
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        white-space: nowrap;
+        transition: all 0.3s ease;
+      }
+      .idsq-progress-active {
+        background-color: var(--idsq-primary);
+        color: white;
+      }
+      .idsq-progress-completed {
+        background-color: rgba(54, 54, 54, 0.1);
+        color: var(--idsq-primary);
+        text-decoration: line-through;
+      }
+      .idsq-progress-upcoming {
+        background-color: rgba(54, 54, 54, 0.05);
+        color: rgba(54, 54, 54, 0.5);
+      }
       .idsq-final-grid {
         grid-template-columns: repeat(2, 1fr);
         max-width: 900px;
@@ -3315,15 +3348,25 @@
     
     // Show options
     if (question.options) {
-      const grid = createElement('div', 'idsq-options-grid');
+      const grid = createElement('div', 'idsq-option-grid');
       question.options.forEach((option) => {
         const card = createElement('button', 'idsq-option-card', {
           type: 'button',
         });
-        card.textContent = option.name;
         card.addEventListener('click', () => {
           handlers.onSelectExpertAnswer(expert, question.id, option);
         });
+        card.classList.add('idsq-space-card');
+        
+        const icon = createElement('div', 'idsq-space-icon');
+        icon.textContent = option.icon || '○';
+        const label = createElement('div', 'idsq-option-label');
+        const optionTitle = createElement('h3', 'idsq-option-title');
+        optionTitle.textContent = option.name;
+
+        label.appendChild(optionTitle);
+        card.appendChild(icon);
+        card.appendChild(label);
         grid.appendChild(card);
       });
       section.appendChild(grid);
@@ -3391,10 +3434,29 @@
     title.textContent = `What would you prefer for your ${spaceName} ${currentCategory.name.toLowerCase()}?`;
     section.appendChild(title);
     
-    // Progress tracker
-    const progress = createElement('div', 'idsq-progress-bar');
-    progress.innerHTML = `<strong>${currentCategory.name}</strong> · Category ${state.currentCategoryIndex + 1} of ${categories.length}`;
-    section.appendChild(progress);
+    // Progress tracker - horizontal slider showing next few categories
+    const progressContainer = createElement('div', 'idsq-progress-bar');
+    const progressTrack = createElement('div', 'idsq-progress-track');
+    
+    // Show current + next 4 categories
+    const startIndex = state.currentCategoryIndex;
+    const endIndex = Math.min(startIndex + 5, categories.length);
+    
+    for (let i = startIndex; i < endIndex; i++) {
+      const catMarker = createElement('div', 'idsq-progress-marker');
+      catMarker.textContent = categories[i].name;
+      if (i === state.currentCategoryIndex) {
+        catMarker.classList.add('idsq-progress-active');
+      } else if (i < state.currentCategoryIndex) {
+        catMarker.classList.add('idsq-progress-completed');
+      } else {
+        catMarker.classList.add('idsq-progress-upcoming');
+      }
+      progressTrack.appendChild(catMarker);
+    }
+    
+    progressContainer.appendChild(progressTrack);
+    section.appendChild(progressContainer);
     
     // Add helpful instruction text
     const instruction = createElement('p', 'idsq-instruction');
@@ -3420,7 +3482,7 @@
     const options = generateMaterialOptions(currentCategory.id, state.finalStyle.styleId, categoryState.round);
     
     // Images grid matching quiz format
-    const grid = createElement('div', 'idsq-options-grid');
+    const grid = createElement('div', 'idsq-option-grid');
     options.forEach((option) => {
       const card = createElement('button', 'idsq-option-card', {
         type: 'button',
@@ -3446,11 +3508,11 @@
     // Navigation matching quiz format
     const navigation = createElement('div', 'idsq-step-navigation');
     
-    // Restart Materials button
-    const restartButton = createElement('button', 'idsq-button idsq-button-secondary idsq-restart-btn');
-    restartButton.textContent = 'Restart Materials';
-    restartButton.addEventListener('click', handlers.onRestartMaterials);
-    navigation.appendChild(restartButton);
+    // Start Over button
+    const startOverButton = createElement('button', 'idsq-button idsq-button-secondary idsq-restart-btn');
+    startOverButton.textContent = 'Start Over';
+    startOverButton.addEventListener('click', handlers.onRestart);
+    navigation.appendChild(startOverButton);
     
     // Spacer
     const spacer = createElement('div', 'idsq-step-spacer');
