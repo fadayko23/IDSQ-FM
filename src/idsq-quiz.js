@@ -707,11 +707,21 @@
             id: 'footprint',
             prompt: 'Will the footprint of your space change?',
             description: 'Understanding layout changes helps optimize structural and spatial planning.',
+            options: [
+              { id: 'yes', name: 'Yes, footprint will change' },
+              { id: 'no', name: 'No, keeping same footprint' },
+              { id: 'unsure', name: 'Not sure yet' },
+            ],
           },
           {
             id: 'plans',
             prompt: 'Do you already have plans or blueprints for this space?',
             description: 'Having existing plans helps us provide more accurate recommendations.',
+            options: [
+              { id: 'yes', name: 'Yes, I have plans' },
+              { id: 'no', name: 'No plans yet' },
+              { id: 'partial', name: 'Partial plans' },
+            ],
           },
         ],
       },
@@ -2385,6 +2395,16 @@
         width: 100%;
         margin-top: 2rem;
       }
+      .idsq-options-grid {
+        display: grid;
+        grid-template-columns: repeat(1, 1fr);
+        gap: 1rem;
+        width: 100%;
+        margin-top: 2rem;
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+      }
       .idsq-final-grid {
         grid-template-columns: repeat(2, 1fr);
         max-width: 900px;
@@ -3281,13 +3301,9 @@
     expertWrapper.appendChild(expertInfo);
     section.appendChild(expertWrapper);
     
-    // Title - use intro text on first question, prompt on others
+    // Title - use intro text or prompt
     const title = createElement('h2', 'idsq-title');
-    if (questionIndex === 0) {
-      title.textContent = expertConfig.intro;
-    } else {
-      title.textContent = question.prompt;
-    }
+    title.textContent = question.prompt || expertConfig.intro;
     section.appendChild(title);
     
     // Description if available
