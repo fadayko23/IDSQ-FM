@@ -2412,10 +2412,11 @@
         justify-content: center;
       }
       .idsq-progress-track {
-        display: flex;
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: auto;
         gap: 0;
         align-items: center;
-        min-width: fit-content;
         background: rgba(54, 54, 54, 0.05);
         border-radius: 12px;
         padding: 0.5rem;
@@ -2428,23 +2429,20 @@
         font-weight: 500;
         white-space: nowrap;
         transition: all 0.3s ease;
-        position: relative;
-        margin: 0 0.25rem;
       }
-      .idsq-progress-marker:not(:last-child)::after {
-        content: '→';
-        position: absolute;
-        right: -0.5rem;
+      .idsq-progress-separator {
+        padding: 0 0.5rem;
         color: rgba(54, 54, 54, 0.3);
         font-size: 1rem;
+        user-select: none;
       }
       .idsq-progress-marker.idsq-progress-active {
         background-color: #363636;
-        color: white !important;
+        color: #ffffff !important;
         text-decoration: none !important;
         box-shadow: 0 2px 8px rgba(54, 54, 54, 0.2);
       }
-      .idsq-progress-marker.idsq-progress-active:not(:last-child)::after {
+      .idsq-progress-separator-after-active {
         color: rgba(255, 255, 255, 0.6) !important;
       }
       .idsq-progress-completed {
@@ -3470,6 +3468,16 @@
         catMarker.classList.add('idsq-progress-upcoming');
       }
       progressTrack.appendChild(catMarker);
+      
+      // Add separator after each marker except the last
+      if (i < endIndex - 1) {
+        const separator = createElement('div', 'idsq-progress-separator');
+        separator.textContent = '→';
+        if (i === state.currentCategoryIndex) {
+          separator.classList.add('idsq-progress-separator-after-active');
+        }
+        progressTrack.appendChild(separator);
+      }
     }
     
     progressContainer.appendChild(progressTrack);
