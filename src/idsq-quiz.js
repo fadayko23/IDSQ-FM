@@ -699,28 +699,33 @@
         intro: 'Let\'s make sure the design and construction details align with your space. I\'ll identify where we can optimize layout, lighting, or structure before you choose materials.',
         questions: [
           {
-            id: 'project-type',
-            prompt: 'Are you designing for a new home or a remodel?',
-            description: 'This helps us understand the scope of your project.',
-          },
-          {
-            id: 'footprint',
-            prompt: 'Will the footprint of your space change?',
-            description: 'Understanding layout changes helps optimize structural and spatial planning.',
+            id: 'layout',
+            prompt: 'Would you like to keep your current bathroom layout or explore a new spatial configuration?',
+            description: 'This determines what fixtures and configurations we can work with.',
             options: [
-              { id: 'yes', name: 'Yes, footprint will change', icon: '🏗️' },
-              { id: 'no', name: 'No, keeping same footprint', icon: '📐' },
+              { id: 'keep', name: 'Keep current layout', icon: '📐' },
+              { id: 'explore', name: 'Explore new configuration', icon: '🏗️' },
               { id: 'unsure', name: 'Not sure yet', icon: '🤔' },
             ],
           },
           {
-            id: 'plans',
-            prompt: 'Do you already have plans or blueprints for this space?',
-            description: 'Having existing plans helps us provide more accurate recommendations.',
+            id: 'lighting',
+            prompt: 'How much natural light does your bathroom currently get?',
+            description: 'This helps us determine reflective materials and lighting solutions.',
             options: [
-              { id: 'yes', name: 'Yes, I have plans', icon: '📋' },
-              { id: 'no', name: 'No plans yet', icon: '📝' },
-              { id: 'partial', name: 'Partial plans', icon: '✏️' },
+              { id: 'a-lot', name: 'A lot of natural light', icon: '☀️' },
+              { id: 'some', name: 'Some natural light', icon: '🌤️' },
+              { id: 'very-little', name: 'Very little natural light', icon: '🌙' },
+            ],
+          },
+          {
+            id: 'ceiling',
+            prompt: 'How would you describe your bathroom\'s ceiling height?',
+            description: 'This affects fixture scale and proportion recommendations.',
+            options: [
+              { id: 'low', name: 'Low (under 8 ft)', icon: '📏' },
+              { id: 'standard', name: 'Standard (8-9 ft)', icon: '📐' },
+              { id: 'tall', name: 'Tall (9+ ft)', icon: '🏛️' },
             ],
           },
         ],
@@ -729,21 +734,34 @@
         intro: 'Now that we know the project type, let\'s refine how this space should feel and function day-to-day.',
         questions: [
           {
-            id: 'mood',
-            prompt: 'Would you like your space to feel more spa-like and serene or bold and statement-making?',
+            id: 'function',
+            prompt: 'Is this bathroom your primary suite, a shared family bath, or a guest space?',
+            description: 'This helps us understand usage patterns and prioritize features.',
             options: [
-              { id: 'serene', name: 'Serene & Spa-like', icon: '🌸' },
-              { id: 'bold', name: 'Bold & Statement-making', icon: '💥' },
-              { id: 'balanced', name: 'Balanced Mix', icon: '⚖️' },
+              { id: 'primary', name: 'Primary Suite', icon: '🏠' },
+              { id: 'shared', name: 'Shared Family Bath', icon: '👨‍👩‍👧' },
+              { id: 'guest', name: 'Guest Space', icon: '👋' },
             ],
           },
           {
-            id: 'materials',
-            prompt: 'Do you prefer natural materials or engineered alternatives?',
+            id: 'mood',
+            prompt: 'How do you want this bathroom to feel when you walk in?',
+            description: 'This sets the tone for materials, lighting, and finishes.',
             options: [
-              { id: 'natural', name: 'Natural (stone, wood)', icon: '🌿' },
-              { id: 'engineered', name: 'Engineered (porcelain, composite)', icon: '🔬' },
-              { id: 'mixed', name: 'Mixed Approach', icon: '🎨' },
+              { id: 'calm', name: 'Calm and serene', icon: '🌸' },
+              { id: 'bright', name: 'Bright and fresh', icon: '☀️' },
+              { id: 'warm', name: 'Warm and cozy', icon: '🔥' },
+              { id: 'bold', name: 'Bold and expressive', icon: '💥' },
+            ],
+          },
+          {
+            id: 'maintenance',
+            prompt: 'How important is easy maintenance to you?',
+            description: 'This influences finish selections and material recommendations.',
+            options: [
+              { id: 'essential', name: 'Essential', icon: '✨' },
+              { id: 'somewhat', name: 'Somewhat important', icon: '⚖️' },
+              { id: 'not-priority', name: 'Not a priority', icon: '🎨' },
             ],
           },
         ],
@@ -752,21 +770,32 @@
         intro: 'Beautiful choices deserve smart construction. Let\'s make sure your selections are durable, practical, and aligned with your build timeline.',
         questions: [
           {
-            id: 'timeline',
-            prompt: 'What\'s your project timeline?',
+            id: 'remodel-age',
+            prompt: 'How old is your home or this bathroom?',
+            description: 'This helps us understand electrical, plumbing, and structural considerations.',
             options: [
-              { id: '4-6weeks', name: '4-6 weeks', icon: '⚡' },
-              { id: '2-3months', name: '2-3 months', icon: '⏰' },
-              { id: '6plus', name: '6+ months', icon: '📅' },
+              { id: 'older', name: 'Older than 20 years', icon: '🏛️' },
+              { id: 'newer', name: 'Newer than 10 years', icon: '🏢' },
+              { id: 'unknown', name: 'Not sure', icon: '❓' },
             ],
           },
           {
-            id: 'maintenance',
-            prompt: 'Would you like recommendations for low-maintenance materials or premium finishes?',
+            id: 'plumbing',
+            prompt: 'Are you planning to relocate any plumbing fixtures like your shower, tub, or toilet?',
+            description: 'This determines installation complexity and compatibility.',
             options: [
-              { id: 'low-maintenance', name: 'Low-maintenance', icon: '✨' },
-              { id: 'premium', name: 'Premium finishes', icon: '💎' },
-              { id: 'balanced', name: 'Balanced approach', icon: '🎯' },
+              { id: 'yes', name: 'Yes, relocating fixtures', icon: '🔧' },
+              { id: 'no', name: 'No, keeping in place', icon: '📍' },
+              { id: 'maybe', name: 'Maybe', icon: '🤔' },
+            ],
+          },
+          {
+            id: 'traffic',
+            prompt: 'Is this a high-traffic bathroom or used occasionally?',
+            description: 'This influences material durability and performance selections.',
+            options: [
+              { id: 'high', name: 'High-traffic bathroom', icon: '👥' },
+              { id: 'occasional', name: 'Used occasionally', icon: '👤' },
             ],
           },
         ],
@@ -2401,6 +2430,10 @@
         margin-left: auto;
         margin-right: auto;
       }
+      .idsq-option-grid.idsq-grid-four-items {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
+      }
       .idsq-options-grid {
         display: grid;
         grid-template-columns: repeat(1, 1fr);
@@ -3373,6 +3406,11 @@
     // Show options
     if (question.options) {
       const grid = createElement('div', 'idsq-option-grid');
+      if (question.options.length === 2) {
+        grid.classList.add('idsq-grid-two-items');
+      } else if (question.options.length === 4) {
+        grid.classList.add('idsq-grid-four-items');
+      }
       question.options.forEach((option) => {
         const card = createElement('button', 'idsq-option-card', {
           type: 'button',
