@@ -4174,15 +4174,15 @@
         // Auto-advance to next question like quiz does
         state.currentFlow = 'project-context';
         state.currentExpert = 'aria';
-        state.currentExpertQuestion = 1;
+        state.currentExpertQuestion = 0;
         saveState(state);
         renderExpertQuestion(config, mount, state, handlers);
       },
       onContinueFromProjectType() {
-        // Move to expert questions (skip first question since we just did project-type)
+        // Move to expert questions
         state.currentFlow = 'project-context';
         state.currentExpert = 'aria';
-        state.currentExpertQuestion = 1;
+        state.currentExpertQuestion = 0;
         saveState(state);
         renderExpertQuestion(config, mount, state, handlers);
       },
