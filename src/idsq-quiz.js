@@ -2441,6 +2441,7 @@
       .idsq-progress-marker.idsq-progress-active {
         background-color: #363636;
         color: white !important;
+        text-decoration: none !important;
         box-shadow: 0 2px 8px rgba(54, 54, 54, 0.2);
       }
       .idsq-progress-marker.idsq-progress-active:not(:last-child)::after {
