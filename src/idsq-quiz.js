@@ -2263,7 +2263,7 @@
       #idsq * {
         box-sizing: border-box;
       }
-      #idsq *:not(button):not(.idsq-button) {
+      #idsq *:not(button):not(.idsq-button):not(.idsq-progress-marker) {
         color: var(--idsq-text) !important;
       }
       .idsq-title {
