@@ -709,6 +709,16 @@
             ],
           },
           {
+            id: 'separation',
+            prompt: 'Would you like more separation between wet and dry zones?',
+            description: 'This influences layout recommendations for your bathroom.',
+            options: [
+              { id: 'yes', name: 'Yes, I want separation', icon: '🚧' },
+              { id: 'no', name: 'No, keep open', icon: '🪟' },
+            ],
+            showIf: { expert: 'aria', questionId: 'layout', answerId: ['explore', 'unsure'] },
+          },
+          {
             id: 'lighting',
             prompt: 'How much natural light does your bathroom currently get?',
             description: 'This helps us determine reflective materials and lighting solutions.',
@@ -3363,7 +3373,10 @@
     const expert = state.currentExpert;
     const expertConfig = config.expertQuestions[expert];
     const questionIndex = state.currentExpertQuestion || 0;
-    const question = expertConfig.questions[questionIndex];
+    
+    // Filter questions based on conditions and get the visible one at current index
+    const visibleQuestions = getVisibleQuestions(expert, state.projectContext);
+    const question = visibleQuestions[questionIndex];
     
     // Get the correct avatar based on expert
     const avatars = {
@@ -3823,6 +3836,19 @@
       saveState(state);
     }
 
+    // Helper to filter questions based on conditional logic
+    function getVisibleQuestions(expert, context) {
+      const expertConfig = config.expertQuestions[expert];
+      if (!expertConfig) return [];
+      
+      return expertConfig.questions.filter(q => {
+        if (!q.showIf) return true;
+        const condition = q.showIf;
+        const answer = context[condition.expert]?.[condition.questionId]?.id;
+        return answer && condition.answerId.includes(answer);
+      });
+    }
+
     function getStepsForSpace(spaceId) {
       const explicit = config.stepsBySpace && (config.stepsBySpace[spaceId] || config.stepsBySpace['general']);
       if (explicit && explicit.length >= 4) return explicit;
@@ -4094,11 +4120,11 @@
         }
         state.projectContext[expert][questionId] = answer;
         
-        // Check if more questions for this expert
-        const expertConfig = config.expertQuestions[expert];
+        // Check if more questions for this expert (use visible questions count)
+        const visibleQuestions = getVisibleQuestions(expert, state.projectContext);
         const questionIndex = state.currentExpertQuestion || 0;
         
-        if (questionIndex < expertConfig.questions.length - 1) {
+        if (questionIndex < visibleQuestions.length - 1) {
           // More questions for this expert
           state.currentExpertQuestion += 1;
           saveState(state);
