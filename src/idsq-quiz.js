@@ -3217,6 +3217,19 @@
     return options;
   }
 
+  // Helper to filter questions based on conditional logic (used by both render and handler functions)
+  function getVisibleQuestions(expert, context, config) {
+    const expertConfig = config.expertQuestions[expert];
+    if (!expertConfig) return [];
+    
+    return expertConfig.questions.filter(q => {
+      if (!q.showIf) return true;
+      const condition = q.showIf;
+      const answer = context[condition.expert]?.[condition.questionId]?.id;
+      return answer && condition.answerId.includes(answer);
+    });
+  }
+
   function renderExpertIntro(config, mount, state, handlers) {
     const section = createElement('section', 'idsq-intro');
     
@@ -3375,7 +3388,7 @@
     const questionIndex = state.currentExpertQuestion || 0;
     
     // Filter questions based on conditions and get the visible one at current index
-    const visibleQuestions = getVisibleQuestions(expert, state.projectContext);
+    const visibleQuestions = getVisibleQuestions(expert, state.projectContext, config);
     const question = visibleQuestions[questionIndex];
     
     // Get the correct avatar based on expert
@@ -3836,19 +3849,6 @@
       saveState(state);
     }
 
-    // Helper to filter questions based on conditional logic
-    function getVisibleQuestions(expert, context) {
-      const expertConfig = config.expertQuestions[expert];
-      if (!expertConfig) return [];
-      
-      return expertConfig.questions.filter(q => {
-        if (!q.showIf) return true;
-        const condition = q.showIf;
-        const answer = context[condition.expert]?.[condition.questionId]?.id;
-        return answer && condition.answerId.includes(answer);
-      });
-    }
-
     function getStepsForSpace(spaceId) {
       const explicit = config.stepsBySpace && (config.stepsBySpace[spaceId] || config.stepsBySpace['general']);
       if (explicit && explicit.length >= 4) return explicit;
@@ -4121,7 +4121,7 @@
         state.projectContext[expert][questionId] = answer;
         
         // Check if more questions for this expert (use visible questions count)
-        const visibleQuestions = getVisibleQuestions(expert, state.projectContext);
+        const visibleQuestions = getVisibleQuestions(expert, state.projectContext, config);
         const questionIndex = state.currentExpertQuestion || 0;
         
         if (questionIndex < visibleQuestions.length - 1) {
