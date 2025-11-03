@@ -2443,6 +2443,9 @@
         color: white !important;
         box-shadow: 0 2px 8px rgba(54, 54, 54, 0.2);
       }
+      .idsq-progress-marker.idsq-progress-active:not(:last-child)::after {
+        color: rgba(255, 255, 255, 0.6) !important;
+      }
       .idsq-progress-completed {
         background-color: rgba(54, 54, 54, 0.15);
         color: #363636;
@@ -3492,7 +3495,14 @@
     }
     
     const categoryState = state.materialsSelections[currentCategory.id];
-    const options = generateMaterialOptions(currentCategory.id, state.finalStyle.styleId, categoryState.round);
+    
+    // Round 3 shows the two winners from rounds 1 and 2
+    let options;
+    if (categoryState.round === 3) {
+      options = categoryState.winners.slice(0, 2);
+    } else {
+      options = generateMaterialOptions(currentCategory.id, state.finalStyle.styleId, categoryState.round);
+    }
     
     // Images grid matching quiz format
     const grid = createElement('div', 'idsq-option-grid');
