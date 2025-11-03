@@ -707,6 +707,17 @@
               { id: 'explore', name: 'Explore new configuration', icon: '🏗️' },
               { id: 'unsure', name: 'Not sure yet', icon: '🤔' },
             ],
+            showIf: { projectType: 'remodel' },
+          },
+          {
+            id: 'plans',
+            prompt: 'Do you already have plans or blueprints for this space?',
+            description: 'This helps me understand the scope and any existing design elements.',
+            options: [
+              { id: 'has-plans', name: 'Yes, I have plans', icon: '📋' },
+              { id: 'no-plans', name: 'No plans yet', icon: '🔨' },
+            ],
+            showIf: { projectType: 'new-home' },
           },
           {
             id: 'separation',
@@ -716,11 +727,16 @@
               { id: 'yes', name: 'Yes, I want separation', icon: '🚧' },
               { id: 'no', name: 'No, keep open', icon: '🪟' },
             ],
-            showIf: { expert: 'aria', questionId: 'layout', answerId: ['explore', 'unsure'] },
+            showIf: { 
+              conditions: [
+                { expert: 'aria', questionId: 'layout', answerId: ['explore', 'unsure'] },
+                { projectType: 'new-home' }
+              ]
+            },
           },
           {
             id: 'lighting',
-            prompt: 'How much natural light does your bathroom currently get?',
+            prompt: 'How much natural light will your bathroom have?',
             description: 'This helps us determine reflective materials and lighting solutions.',
             options: [
               { id: 'a-lot', name: 'A lot of natural light', icon: '☀️' },
@@ -729,14 +745,37 @@
             ],
           },
           {
+            id: 'lighting-remodel',
+            prompt: 'How much natural light does your bathroom currently get?',
+            description: 'This helps us determine reflective materials and lighting solutions.',
+            options: [
+              { id: 'a-lot', name: 'A lot of natural light', icon: '☀️' },
+              { id: 'some', name: 'Some natural light', icon: '🌤️' },
+              { id: 'very-little', name: 'Very little natural light', icon: '🌙' },
+            ],
+            showIf: { projectType: 'remodel' },
+          },
+          {
             id: 'ceiling',
-            prompt: 'How would you describe your bathroom\'s ceiling height?',
+            prompt: 'What ceiling height would you prefer for your bathroom?',
             description: 'This affects fixture scale and proportion recommendations.',
             options: [
               { id: 'low', name: 'Low (under 8 ft)', icon: '📏' },
               { id: 'standard', name: 'Standard (8-9 ft)', icon: '📐' },
               { id: 'tall', name: 'Tall (9+ ft)', icon: '🏛️' },
             ],
+            showIf: { projectType: 'new-home' },
+          },
+          {
+            id: 'ceiling-remodel',
+            prompt: 'How would you describe your bathroom\'s current ceiling height?',
+            description: 'This affects fixture scale and proportion recommendations.',
+            options: [
+              { id: 'low', name: 'Low (under 8 ft)', icon: '📏' },
+              { id: 'standard', name: 'Standard (8-9 ft)', icon: '📐' },
+              { id: 'tall', name: 'Tall (9+ ft)', icon: '🏛️' },
+            ],
+            showIf: { projectType: 'remodel' },
           },
         ],
       },
@@ -788,6 +827,7 @@
               { id: 'newer', name: 'Newer than 10 years', icon: '🏢' },
               { id: 'unknown', name: 'Not sure', icon: '❓' },
             ],
+            showIf: { projectType: 'remodel' },
           },
           {
             id: 'plumbing',
@@ -798,6 +838,7 @@
               { id: 'no', name: 'No, keeping in place', icon: '📍' },
               { id: 'maybe', name: 'Maybe', icon: '🤔' },
             ],
+            showIf: { projectType: 'remodel' },
           },
           {
             id: 'traffic',
@@ -806,6 +847,16 @@
             options: [
               { id: 'high', name: 'High-traffic bathroom', icon: '👥' },
               { id: 'occasional', name: 'Used occasionally', icon: '👤' },
+            ],
+          },
+          {
+            id: 'timeline',
+            prompt: 'What\'s your target completion timeline?',
+            description: 'This helps determine what products fit your schedule.',
+            options: [
+              { id: 'quick', name: 'Quick (under 6 weeks)', icon: '⚡' },
+              { id: 'moderate', name: 'Moderate (2-3 months)', icon: '📅' },
+              { id: 'flexible', name: 'Flexible (6+ months)', icon: '🗓️' },
             ],
           },
         ],
@@ -3225,8 +3276,35 @@
     return expertConfig.questions.filter(q => {
       if (!q.showIf) return true;
       const condition = q.showIf;
-      const answer = context[condition.expert]?.[condition.questionId]?.id;
-      return answer && condition.answerId.includes(answer);
+      
+      // Handle projectType conditional (checks the saved project type)
+      if (condition.projectType) {
+        const savedProjectType = context.projectType?.id;
+        return savedProjectType === condition.projectType;
+      }
+      
+      // Handle expert question conditional
+      if (condition.expert && condition.questionId && condition.answerId) {
+        const answer = context[condition.expert]?.[condition.questionId]?.id;
+        return answer && condition.answerId.includes(answer);
+      }
+      
+      // Handle multiple conditions (OR logic)
+      if (condition.conditions && Array.isArray(condition.conditions)) {
+        return condition.conditions.some(c => {
+          if (c.projectType) {
+            const savedProjectType = context.projectType?.id;
+            return savedProjectType === c.projectType;
+          }
+          if (c.expert && c.questionId && c.answerId) {
+            const answer = context[c.expert]?.[c.questionId]?.id;
+            return answer && c.answerId.includes(answer);
+          }
+          return false;
+        });
+      }
+      
+      return true;
     });
   }
 
