@@ -2395,6 +2395,12 @@
         width: 100%;
         margin-top: 2rem;
       }
+      .idsq-option-grid.idsq-grid-two-items {
+        grid-template-columns: repeat(2, 1fr);
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+      }
       .idsq-options-grid {
         display: grid;
         grid-template-columns: repeat(1, 1fr);
@@ -3256,6 +3262,9 @@
     
     // Show project type options in room selection style
     const grid = createElement('div', 'idsq-option-grid');
+    if (config.projectContext.type.length === 2) {
+      grid.classList.add('idsq-grid-two-items');
+    }
     config.projectContext.type.forEach((type) => {
       const card = createElement('button', 'idsq-option-card', {
         type: 'button',
