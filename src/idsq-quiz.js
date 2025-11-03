@@ -2438,9 +2438,9 @@
         color: rgba(54, 54, 54, 0.3);
         font-size: 1rem;
       }
-      .idsq-progress-active {
+      .idsq-progress-marker.idsq-progress-active {
         background-color: #363636;
-        color: white;
+        color: white !important;
         box-shadow: 0 2px 8px rgba(54, 54, 54, 0.2);
       }
       .idsq-progress-completed {
