@@ -3524,6 +3524,9 @@
     
     // Images grid matching quiz format
     const grid = createElement('div', 'idsq-option-grid');
+    if (options.length === 2) {
+      grid.classList.add('idsq-grid-two-items');
+    }
     options.forEach((option) => {
       const card = createElement('button', 'idsq-option-card', {
         type: 'button',
