@@ -2408,35 +2408,48 @@
       .idsq-progress-bar {
         width: 100%;
         margin: 2rem 0;
-        overflow-x: auto;
+        display: flex;
+        justify-content: center;
       }
       .idsq-progress-track {
         display: flex;
-        gap: 1rem;
+        gap: 0;
         align-items: center;
         min-width: fit-content;
-        padding-bottom: 0.5rem;
+        background: rgba(54, 54, 54, 0.05);
+        border-radius: 12px;
+        padding: 0.5rem;
+        overflow-x: auto;
       }
       .idsq-progress-marker {
-        padding: 0.5rem 1rem;
+        padding: 0.75rem 1.25rem;
         border-radius: 8px;
         font-size: 0.875rem;
         font-weight: 500;
         white-space: nowrap;
         transition: all 0.3s ease;
+        position: relative;
+        margin: 0 0.25rem;
+      }
+      .idsq-progress-marker:not(:last-child)::after {
+        content: '→';
+        position: absolute;
+        right: -0.5rem;
+        color: rgba(54, 54, 54, 0.3);
+        font-size: 1rem;
       }
       .idsq-progress-active {
-        background-color: var(--idsq-primary);
+        background-color: #363636;
         color: white;
+        box-shadow: 0 2px 8px rgba(54, 54, 54, 0.2);
       }
       .idsq-progress-completed {
-        background-color: rgba(54, 54, 54, 0.1);
-        color: var(--idsq-primary);
-        text-decoration: line-through;
+        background-color: rgba(54, 54, 54, 0.15);
+        color: #363636;
       }
       .idsq-progress-upcoming {
-        background-color: rgba(54, 54, 54, 0.05);
-        color: rgba(54, 54, 54, 0.5);
+        background-color: transparent;
+        color: rgba(54, 54, 54, 0.4);
       }
       .idsq-final-grid {
         grid-template-columns: repeat(2, 1fr);
