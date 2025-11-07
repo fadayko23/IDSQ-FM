@@ -1095,6 +1095,207 @@
     return el;
   }
 
+  const WHOLE_HOME_DEFAULT_SPACES = [
+    { id: 'kitchen', name: 'Kitchen' },
+    { id: 'living-room', name: 'Living Room' },
+    { id: 'bedroom', name: 'Bedroom' },
+    { id: 'bathroom', name: 'Bathroom' },
+  ];
+
+  const WHOLE_HOME_CORE_SPACE_IDS = new Set(['kitchen', 'living-room', 'bedroom', 'bathroom', 'office']);
+
+  const WHOLE_HOME_ADDITIONAL_SPACES = [
+    'Attic', 'Balcony', 'Bar', 'Basement', 'Breakfast Area', 'Casita', 'Closet', 'Courtyard',
+    'Deck', 'Den', 'Dining Room', 'Drawing Room', 'Drop Zone', 'Entryway', 'Family Room',
+    'Flex Space', 'Foyer', 'Game Room', 'Garage', 'Gazebo', 'General Exterior', 'General Interior',
+    'Great Room', 'Gym', 'Hallway', 'Home Theater', 'Library', 'Loft', 'Lounge', 'Mechanical Room',
+    'Mudroom', 'Nursery', 'Outdoor Kitchen', 'Outdoor Shower', 'Pantry', 'Patio', 'Pool Area',
+    'Pool Bath', 'Porch', 'Powder Bathroom', 'Prep Kitchen', 'Storage Room', 'Study', 'Sunroom',
+    'Wine Cellar', 'Workshop'
+  ];
+
+  function normalizeSpaceId(nameOrId) {
+    if (!nameOrId) return '';
+    return nameOrId
+      .toString()
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  }
+
+  function ensureSpacesRequested(state) {
+    if (!Array.isArray(state.spacesRequested)) {
+      state.spacesRequested = [];
+    }
+    const seen = new Set();
+    state.spacesRequested = state.spacesRequested.filter((space) => {
+      if (!space || !space.id) {
+        return false;
+      }
+      const normalizedId = normalizeSpaceId(space.id);
+      if (seen.has(normalizedId)) {
+        return false;
+      }
+      seen.add(normalizedId);
+      return true;
+    });
+  }
+
+  function addSpaceToSelection(state, spaceId, spaceName) {
+    ensureSpacesRequested(state);
+    const normalizedId = normalizeSpaceId(spaceId);
+    if (!normalizedId) return false;
+    if (state.spacesRequested.some((space) => normalizeSpaceId(space.id) === normalizedId)) {
+      return false;
+    }
+    state.spacesRequested.push({ id: normalizedId, name: spaceName || spaceId });
+    return true;
+  }
+
+  function removeSpaceFromSelection(state, spaceId) {
+    ensureSpacesRequested(state);
+    const normalizedId = normalizeSpaceId(spaceId);
+    const beforeLength = state.spacesRequested.length;
+    state.spacesRequested = state.spacesRequested.filter(
+      (space) => normalizeSpaceId(space.id) !== normalizedId
+    );
+    return state.spacesRequested.length !== beforeLength;
+  }
+
+  function createMenuButton(handlers) {
+    if (!handlers || typeof handlers.onRestart !== 'function') {
+      return null;
+    }
+
+    const menuWrapper = createElement('div', 'idsq-menu');
+    const trigger = createElement('button', 'idsq-menu-button', {
+      type: 'button',
+      'aria-haspopup': 'true',
+      'aria-expanded': 'false',
+      'aria-label': 'Quiz options',
+    });
+    trigger.innerHTML = '<span aria-hidden="true">⋯</span>';
+
+    const dropdown = createElement('div', 'idsq-menu-dropdown', {
+      role: 'menu',
+    });
+
+    let isOpen = false;
+
+    const closeMenu = () => {
+      if (!isOpen) return;
+      isOpen = false;
+      trigger.setAttribute('aria-expanded', 'false');
+      dropdown.classList.remove('idsq-menu-dropdown-open');
+      document.removeEventListener('click', handleDocumentClick);
+      document.removeEventListener('keydown', handleEscapeKey);
+    };
+
+    const openMenu = () => {
+      if (isOpen) return;
+      isOpen = true;
+      trigger.setAttribute('aria-expanded', 'true');
+      dropdown.classList.add('idsq-menu-dropdown-open');
+      setTimeout(() => {
+        document.addEventListener('click', handleDocumentClick);
+        document.addEventListener('keydown', handleEscapeKey);
+      }, 0);
+    };
+
+    const toggleMenu = () => {
+      if (isOpen) {
+        closeMenu();
+      } else {
+        openMenu();
+      }
+    };
+
+    function handleDocumentClick(event) {
+      if (!menuWrapper.contains(event.target)) {
+        closeMenu();
+      }
+    }
+
+    function handleEscapeKey(event) {
+      if (event.key === 'Escape') {
+        closeMenu();
+      }
+    }
+
+    const startButton = createElement('button', 'idsq-menu-item', {
+      type: 'button',
+      role: 'menuitem',
+    });
+    startButton.textContent = 'Start from Beginning';
+    startButton.addEventListener('click', () => {
+      closeMenu();
+      handlers.onRestart();
+    });
+
+    const restartSectionButton = createElement('button', 'idsq-menu-item', {
+      type: 'button',
+      role: 'menuitem',
+    });
+    restartSectionButton.textContent = 'Restart This Section';
+    restartSectionButton.addEventListener('click', () => {
+      closeMenu();
+      if (typeof handlers.onRestartSection === 'function') {
+        handlers.onRestartSection();
+      } else {
+        handlers.onRestart();
+      }
+    });
+
+    dropdown.appendChild(startButton);
+    dropdown.appendChild(restartSectionButton);
+    menuWrapper.appendChild(trigger);
+    menuWrapper.appendChild(dropdown);
+
+    trigger.addEventListener('click', toggleMenu);
+    trigger.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        toggleMenu();
+      }
+    });
+
+    return menuWrapper;
+  }
+
+  function attachMenuToSection(section, handlers) {
+    if (!section || !handlers || section.dataset.hideMenu === 'true') {
+      return;
+    }
+    const existingMenu = section.querySelector('.idsq-menu');
+    if (existingMenu) {
+      existingMenu.remove();
+    }
+    const menu = createMenuButton(handlers);
+    if (!menu) return;
+
+    const preferredAnchors = [
+      '.idsq-button-container:last-of-type',
+      '.idsq-step-navigation',
+      '.idsq-milestone-actions',
+    ];
+
+    let anchor = null;
+    for (const selector of preferredAnchors) {
+      anchor = section.querySelector(selector);
+      if (anchor) break;
+    }
+
+    if (anchor) {
+      anchor.appendChild(menu);
+      anchor.classList.add('idsq-menu-anchor');
+    } else {
+      const container = createElement('div', 'idsq-button-container idsq-menu-container');
+      container.appendChild(menu);
+      section.appendChild(container);
+    }
+  }
+
   function injectFont(config) {
     if (!config.brand || !config.brand.fontUrl) return;
     const existing = document.querySelector(`link[href="${config.brand.fontUrl}"]`);
@@ -1114,12 +1315,15 @@
     document.head.appendChild(link);
   }
 
-  function showSection(mount, section) {
+  function showSection(mount, section, handlers) {
     const previous = mount.firstElementChild;
     if (!previous) {
       mount.innerHTML = '';
       mount.appendChild(section);
-      requestAnimationFrame(() => section.classList.add('idsq-animate-in'));
+      requestAnimationFrame(() => {
+        section.classList.add('idsq-animate-in');
+        attachMenuToSection(section, handlers);
+      });
       return;
     }
     previous.classList.remove('idsq-animate-in');
@@ -1140,6 +1344,7 @@
           } else {
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }
+          attachMenuToSection(section, handlers);
         });
       },
       { once: true }
@@ -1192,7 +1397,8 @@
       section.appendChild(header);
       section.appendChild(guidePanel);
       section.appendChild(ctaWrap);
-      showSection(mount, section);
+      section.dataset.hideMenu = 'true';
+      showSection(mount, section, handlers);
       return;
     }
 
@@ -1229,7 +1435,8 @@
       logo.addEventListener('contextmenu', (e) => e.preventDefault());
       intro.insertBefore(logo, intro.firstChild);
     }
-    showSection(mount, intro);
+    intro.dataset.hideMenu = 'true';
+    showSection(mount, intro, handlers);
   }
 
   function isNameValid(name) {
@@ -1465,7 +1672,7 @@
     section.appendChild(description);
     section.appendChild(form);
 
-    showSection(mount, section);
+    showSection(mount, section, handlers);
     input.focus();
   }
 
@@ -1505,7 +1712,340 @@
     section.appendChild(description);
     section.appendChild(grid);
 
-    showSection(mount, section);
+    showSection(mount, section, handlers);
+  }
+
+  function renderWholeHomeSpaceSelection(config, mount, state, handlers, saveStateFn) {
+    const saveState = saveStateFn || ((nextState) => {
+      try {
+        localStorage.setItem('idsq-quiz-progress', JSON.stringify(nextState));
+      } catch (e) {
+        console.warn('[IDSQ] Unable to persist whole-home selection progress.');
+      }
+    });
+
+    ensureSpacesRequested(state);
+
+    let stateMutated = false;
+
+    if (!state.spacesRequested || state.spacesRequested.length === 0) {
+      state.spacesRequested = WHOLE_HOME_DEFAULT_SPACES.map((space) => ({ ...space }));
+      stateMutated = true;
+    }
+
+    if (typeof state.showOtherSpaces === 'undefined') {
+      state.showOtherSpaces = false;
+      stateMutated = true;
+    }
+
+    if (typeof state.showCustomSpaceInput === 'undefined') {
+      state.showCustomSpaceInput = false;
+      stateMutated = true;
+    }
+
+    if (!state.otherSpacesVisibleCount || state.otherSpacesVisibleCount < 20) {
+      state.otherSpacesVisibleCount = 20;
+      stateMutated = true;
+    }
+
+    ensureSpacesRequested(state);
+
+    const customSpaces = state.spacesRequested.filter((space) => normalizeSpaceId(space.id).startsWith('custom-'));
+    const additionalSelected = state.spacesRequested.filter(
+      (space) =>
+        !WHOLE_HOME_CORE_SPACE_IDS.has(normalizeSpaceId(space.id)) &&
+        !normalizeSpaceId(space.id).startsWith('custom-')
+    );
+
+    if ((additionalSelected.length > 0 || customSpaces.length > 0) && !state.showOtherSpaces) {
+      state.showOtherSpaces = true;
+      stateMutated = true;
+    }
+
+    if (stateMutated) {
+      saveState(state);
+    }
+
+    const showOtherSpaces = !!state.showOtherSpaces || additionalSelected.length > 0 || customSpaces.length > 0;
+    const showCustomInput = !!state.showCustomSpaceInput || customSpaces.length > 0;
+
+    const section = createElement('section', 'idsq-intro idsq-whole-home');
+
+    const title = createElement('h2', 'idsq-title');
+    title.textContent = 'Which spaces would you like to design?';
+    section.appendChild(title);
+
+    const description = createElement('p', 'idsq-description');
+    description.textContent =
+      'Core rooms are pre-selected. Add or remove spaces below, and use “Other” to browse additional rooms or add your own.';
+    section.appendChild(description);
+
+    const coreSpaces = [
+      { id: 'kitchen', name: 'Kitchen', icon: '🍳', description: 'Culinary spaces and dining areas' },
+      { id: 'living-room', name: 'Living Room', icon: '🛋️', description: 'Social spaces for gathering and relaxation' },
+      { id: 'bedroom', name: 'Bedroom', icon: '🛏️', description: 'Personal retreat and rest spaces' },
+      { id: 'bathroom', name: 'Bathroom', icon: '🛁', description: 'Wellness and rejuvenation spaces' },
+      { id: 'office', name: 'Office', icon: '💼', description: 'Productive and inspiring work spaces' },
+      { id: 'other', name: 'Other', icon: '➕', description: 'Browse additional spaces or add custom rooms' },
+    ];
+
+    const isSpaceSelected = (spaceId) =>
+      state.spacesRequested.some((space) => normalizeSpaceId(space.id) === normalizeSpaceId(spaceId));
+
+    const coreGrid = createElement('div', 'idsq-option-grid idsq-core-space-grid');
+
+    coreSpaces.forEach((space) => {
+      const card = createElement('button', 'idsq-option-card idsq-space-card', { type: 'button' });
+
+      if (space.id === 'other') {
+        card.classList.add('idsq-other-toggle-card');
+        if (showOtherSpaces) {
+          card.classList.add('idsq-selected');
+        }
+        card.addEventListener('click', () => {
+          state.showOtherSpaces = !showOtherSpaces;
+          if (!state.showOtherSpaces) {
+            state.showCustomSpaceInput = false;
+            state.otherSpacesVisibleCount = 20;
+          }
+          saveState(state);
+          renderWholeHomeSpaceSelection(config, mount, state, handlers, saveState);
+        });
+      } else {
+        if (isSpaceSelected(space.id)) {
+          card.classList.add('idsq-selected');
+        }
+        card.addEventListener('click', () => {
+          const removed = removeSpaceFromSelection(state, space.id);
+          if (!removed) {
+            addSpaceToSelection(state, space.id, space.name);
+          }
+          saveState(state);
+          renderWholeHomeSpaceSelection(config, mount, state, handlers, saveState);
+        });
+      }
+
+      const icon = createElement('div', 'idsq-space-icon');
+      icon.textContent = space.icon;
+      const label = createElement('div', 'idsq-option-label');
+      const spaceTitle = createElement('h3', 'idsq-option-title');
+      spaceTitle.textContent = space.name;
+      const spaceDescription = createElement('p', 'idsq-option-description');
+      spaceDescription.textContent = space.description;
+
+      label.appendChild(spaceTitle);
+      label.appendChild(spaceDescription);
+      card.appendChild(icon);
+      card.appendChild(label);
+      coreGrid.appendChild(card);
+    });
+
+    section.appendChild(coreGrid);
+
+    if (showOtherSpaces) {
+      const otherSection = createElement('div', 'idsq-other-spaces-section');
+
+      const otherTitle = createElement('h3', 'idsq-rooms-list-title');
+      otherTitle.textContent = 'Additional spaces';
+      otherSection.appendChild(otherTitle);
+
+      const otherHelp = createElement('p', 'idsq-help-text');
+      otherHelp.textContent = 'Select all that apply. These will be included in your whole-home plan.';
+      otherSection.appendChild(otherHelp);
+
+      const filteredOtherSpaces = WHOLE_HOME_ADDITIONAL_SPACES.filter((spaceName) => {
+        const slug = normalizeSpaceId(spaceName);
+        return !WHOLE_HOME_CORE_SPACE_IDS.has(slug);
+      });
+
+      if (state.otherSpacesVisibleCount > filteredOtherSpaces.length) {
+        state.otherSpacesVisibleCount = filteredOtherSpaces.length;
+        saveState(state);
+      }
+
+      const otherGrid = createElement('div', 'idsq-option-grid idsq-other-spaces-grid');
+
+      if (showCustomInput) {
+        const customTile = createElement('div', 'idsq-option-card idsq-other-space-card idsq-custom-space-card');
+        const customPrompt = createElement('span', 'idsq-custom-space-label');
+        customPrompt.textContent = 'Name your custom space';
+        const customInput = createElement('input', 'idsq-input idsq-custom-space-input', {
+          type: 'text',
+          placeholder: 'e.g. Music Room',
+        });
+        const controlRow = createElement('div', 'idsq-custom-space-inline');
+        const addButton = createElement(
+          'button',
+          'idsq-button idsq-button-secondary idsq-add-custom-submit',
+          { type: 'button' }
+        );
+        addButton.textContent = 'Add';
+        const closeButton = createElement('button', 'idsq-custom-space-cancel', { type: 'button' });
+        closeButton.textContent = 'Done';
+
+        const addCustomSpace = () => {
+          const customName = customInput.value.trim();
+          if (!customName) {
+            return;
+          }
+          const customId = `custom-${normalizeSpaceId(customName)}`;
+          if (!state.spacesRequested.some((space) => normalizeSpaceId(space.id) === customId)) {
+            addSpaceToSelection(state, customId, customName);
+            state.showCustomSpaceInput = true;
+            saveState(state);
+            renderWholeHomeSpaceSelection(config, mount, state, handlers, saveState);
+          } else {
+            customInput.value = '';
+          }
+        };
+
+        addButton.addEventListener('click', addCustomSpace);
+        customInput.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            addCustomSpace();
+          }
+        });
+        closeButton.addEventListener('click', () => {
+          state.showCustomSpaceInput = false;
+          saveState(state);
+          renderWholeHomeSpaceSelection(config, mount, state, handlers, saveState);
+        });
+
+        controlRow.appendChild(addButton);
+        controlRow.appendChild(closeButton);
+        customTile.appendChild(customPrompt);
+        customTile.appendChild(customInput);
+        customTile.appendChild(controlRow);
+        otherGrid.appendChild(customTile);
+        setTimeout(() => customInput.focus(), 0);
+      } else {
+        const customToggle = createElement('button', 'idsq-option-card idsq-other-space-card idsq-custom-space-toggle', {
+          type: 'button',
+        });
+        const label = createElement('span', 'idsq-other-space-name');
+        label.textContent = '+ Add Custom Space';
+        customToggle.appendChild(label);
+        customToggle.addEventListener('click', () => {
+          state.showCustomSpaceInput = true;
+          saveState(state);
+          renderWholeHomeSpaceSelection(config, mount, state, handlers, saveState);
+        });
+        otherGrid.appendChild(customToggle);
+      }
+
+      filteredOtherSpaces.slice(0, state.otherSpacesVisibleCount).forEach((spaceName) => {
+        const spaceId = normalizeSpaceId(spaceName);
+        const card = createElement('button', 'idsq-option-card idsq-other-space-card', { type: 'button' });
+
+        if (isSpaceSelected(spaceId)) {
+          card.classList.add('idsq-selected');
+        }
+
+        card.addEventListener('click', () => {
+          const removed = removeSpaceFromSelection(state, spaceId);
+          if (!removed) {
+            addSpaceToSelection(state, spaceId, spaceName);
+          }
+          saveState(state);
+          renderWholeHomeSpaceSelection(config, mount, state, handlers, saveState);
+        });
+
+        const label = createElement('span', 'idsq-other-space-name');
+        label.textContent = spaceName;
+        card.appendChild(label);
+        otherGrid.appendChild(card);
+      });
+
+      otherSection.appendChild(otherGrid);
+
+      if (state.otherSpacesVisibleCount < filteredOtherSpaces.length) {
+        const loadMoreContainer = createElement('div', 'idsq-load-more-container');
+        const remaining = filteredOtherSpaces.length - state.otherSpacesVisibleCount;
+        const loadMoreButton = createElement('button', 'idsq-button idsq-button-secondary', { type: 'button' });
+        loadMoreButton.textContent = `Load more spaces (${remaining} remaining)`;
+        loadMoreButton.addEventListener('click', () => {
+          state.otherSpacesVisibleCount = Math.min(
+            state.otherSpacesVisibleCount + 20,
+            filteredOtherSpaces.length
+          );
+          saveState(state);
+          renderWholeHomeSpaceSelection(config, mount, state, handlers, saveState);
+        });
+        loadMoreContainer.appendChild(loadMoreButton);
+        otherSection.appendChild(loadMoreContainer);
+      }
+
+      if (customSpaces.length > 0) {
+        const customList = createElement('div', 'idsq-selected-spaces-list idsq-custom-spaces-list');
+        const customHelp = createElement('p', 'idsq-help-text');
+        customHelp.textContent = 'Custom spaces appear here and in your selected list.';
+        otherSection.appendChild(customHelp);
+        customSpaces.forEach((space) => {
+          const chip = createElement('span', 'idsq-space-chip');
+          const label = createElement('span', 'idsq-chip-label');
+          label.textContent = space.name;
+          chip.appendChild(label);
+          const removeBtn = createElement('button', 'idsq-chip-remove', { type: 'button' });
+          removeBtn.textContent = 'Remove';
+          removeBtn.setAttribute('aria-label', `Remove ${space.name}`);
+          removeBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            removeSpaceFromSelection(state, space.id);
+            saveState(state);
+            renderWholeHomeSpaceSelection(config, mount, state, handlers, saveState);
+          });
+          chip.appendChild(removeBtn);
+          customList.appendChild(chip);
+        });
+        otherSection.appendChild(customList);
+      }
+
+      section.appendChild(otherSection);
+    }
+
+    if (state.spacesRequested && state.spacesRequested.length > 0) {
+      const summaryContainer = createElement('div', 'idsq-selected-spaces-summary');
+      const summaryTitle = createElement('h3', 'idsq-summary-title');
+      summaryTitle.textContent = `Selected spaces (${state.spacesRequested.length})`;
+      summaryContainer.appendChild(summaryTitle);
+
+      const selectedList = createElement('div', 'idsq-selected-spaces-list idsq-selected-spaces-horizontal');
+      state.spacesRequested.forEach((space) => {
+        const chip = createElement('span', 'idsq-space-chip');
+        const label = createElement('span', 'idsq-chip-label');
+        label.textContent = space.name;
+        chip.appendChild(label);
+        const removeBtn = createElement('button', 'idsq-chip-remove', { type: 'button' });
+        removeBtn.textContent = 'Remove';
+        removeBtn.setAttribute('aria-label', `Remove ${space.name}`);
+        removeBtn.addEventListener('click', (event) => {
+          event.stopPropagation();
+          removeSpaceFromSelection(state, space.id);
+          saveState(state);
+          renderWholeHomeSpaceSelection(config, mount, state, handlers, saveState);
+        });
+        chip.appendChild(removeBtn);
+        selectedList.appendChild(chip);
+      });
+      summaryContainer.appendChild(selectedList);
+      section.appendChild(summaryContainer);
+    }
+
+    if (state.spacesRequested && state.spacesRequested.length > 0) {
+      const buttonRow = createElement('div', 'idsq-button-container idsq-button-container-right');
+      const continueButton = createElement('button', 'idsq-button idsq-button-primary', { type: 'button' });
+      continueButton.textContent = 'Continue';
+      continueButton.addEventListener('click', () => {
+        if (handlers && typeof handlers.onContinueFromWholeHomeSelection === 'function') {
+          handlers.onContinueFromWholeHomeSelection();
+        }
+      });
+      buttonRow.appendChild(continueButton);
+      section.appendChild(buttonRow);
+    }
+
+    showSection(mount, section, handlers);
   }
 
   function renderWordAssociation(config, mount, state, handlers) {
@@ -1569,7 +2109,7 @@
     section.appendChild(wordContainer);
     section.appendChild(navigation);
 
-    showSection(mount, section);
+    showSection(mount, section, handlers);
   }
 
   function renderStep(config, mount, state, handlers, steps) {
@@ -1692,11 +2232,11 @@
       section.appendChild(navigation);
     }
 
-    showSection(mount, section);
+    showSection(mount, section, handlers);
   }
   
   // Milestone tips that appear between rounds
-  function renderMilestoneTip(config, mount, space, roundNumber, onContinue) {
+  function renderMilestoneTip(config, mount, space, roundNumber, onContinue, handlers) {
     const section = createElement('section', 'idsq-milestone');
     
     // Add Clara avatar
@@ -1730,7 +2270,7 @@
     section.appendChild(tip);
     section.appendChild(continueButton);
     
-    showSection(mount, section);
+    showSection(mount, section, handlers);
   }
   
   function getMilestoneMessage(space, roundNumber) {
@@ -1999,7 +2539,7 @@
     section.appendChild(title);
     section.appendChild(form);
 
-    showSection(mount, section);
+    showSection(mount, section, handlers);
   }
 
   function createInputField(labelText, type, name, required = false) {
@@ -2105,7 +2645,7 @@
     section.appendChild(grid);
     section.appendChild(navigation);
 
-    showSection(mount, section);
+    showSection(mount, section, handlers);
   }
 
   function renderLoading(config, mount) {
@@ -2113,7 +2653,7 @@
     const title = createElement('h2', 'idsq-title');
     title.textContent = config.copy.loadingMessage;
     section.appendChild(title);
-    showSection(mount, section);
+    showSection(mount, section, handlers);
   }
 
   function renderError(config, mount, handlers) {
@@ -2128,7 +2668,7 @@
     section.appendChild(title);
     section.appendChild(description);
     section.appendChild(retry);
-    showSection(mount, section);
+    showSection(mount, section, handlers);
   }
 
   function renderSuccess(config, mount, state, handlers) {
@@ -2256,7 +2796,7 @@
     section.appendChild(scheduleCTA);
     section.appendChild(buttonContainer);
 
-    showSection(mount, section);
+    showSection(mount, section, handlers);
   }
 
   function validateEmail(email) {
@@ -2586,6 +3126,294 @@
         border-color: var(--idsq-primary);
         border-width: 3px;
         box-shadow: 0 8px 30px rgba(44, 44, 44, 0.15);
+      }
+      .idsq-whole-home {
+        align-items: stretch;
+      }
+      .idsq-core-space-grid {
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1.5rem;
+      }
+      .idsq-space-card {
+        padding: 1.5rem;
+        align-items: flex-start;
+        background: linear-gradient(135deg, rgba(54,54,54,0.035), rgba(255,255,255,0.9));
+        min-height: 160px;
+      }
+      .idsq-space-card .idsq-space-icon {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+      }
+      .idsq-space-card .idsq-option-label {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+      }
+      .idsq-space-card .idsq-option-description {
+        margin: 0;
+        font-size: 0.95rem;
+        color: rgba(44,44,44,0.65);
+      }
+      .idsq-other-spaces-section {
+        width: 100%;
+        margin-top: 2.5rem;
+        text-align: left;
+      }
+      .idsq-other-spaces-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 0.75rem;
+      }
+      @media (min-width: 1024px) {
+        .idsq-other-spaces-grid {
+          grid-template-columns: repeat(10, minmax(0, 1fr));
+        }
+      }
+      .idsq-other-space-card {
+        padding: 0.85rem 0.75rem;
+        border-radius: 12px;
+        min-height: auto;
+        background: #f7f7f7;
+        justify-content: center;
+      }
+      .idsq-other-space-card .idsq-option-label,
+      .idsq-other-space-card .idsq-option-title {
+        display: none;
+      }
+      .idsq-custom-space-toggle {
+        border: 2px dashed rgba(54,54,54,0.2);
+        background: rgba(54,54,54,0.035);
+        color: var(--idsq-primary);
+        font-weight: 700;
+      }
+      .idsq-custom-space-card {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.65rem;
+        padding: 1rem;
+        background: #ffffff;
+        border: 2px solid rgba(54,54,54,0.08);
+        cursor: default;
+      }
+      .idsq-custom-space-label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: rgba(44,44,44,0.6);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .idsq-custom-space-inline {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+      }
+      .idsq-custom-space-inline .idsq-button {
+        flex: 0 0 auto;
+      }
+      .idsq-custom-space-inline .idsq-button-secondary {
+        box-shadow: none;
+      }
+      .idsq-custom-space-cancel {
+        background: none;
+        border: none;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: rgba(44,44,44,0.6);
+        cursor: pointer;
+        padding: 0.35rem 0.5rem;
+        border-radius: 8px;
+        transition: color 0.2s ease, background 0.2s ease;
+      }
+      .idsq-custom-space-cancel:hover,
+      .idsq-custom-space-cancel:focus {
+        color: var(--idsq-primary);
+        background: rgba(54,54,54,0.08);
+        outline: none;
+      }
+      .idsq-other-space-name {
+        font-size: 0.9rem;
+        font-weight: 600;
+        text-align: center;
+        color: rgba(44,44,44,0.8);
+      }
+      .idsq-load-more-container {
+        text-align: center;
+        margin-top: 1.25rem;
+      }
+      .idsq-custom-space-section {
+        margin-top: 2rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+      }
+      .idsq-custom-space-control {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+      }
+      .idsq-custom-space-input {
+        flex: 1 1 280px;
+        min-width: 220px;
+        padding: 0.85rem 1rem;
+        border-radius: 999px;
+        border: 2px solid rgba(54,54,54,0.15);
+        font-size: 1rem;
+      }
+      .idsq-custom-space-input:focus {
+        border-color: var(--idsq-primary);
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(54,54,54,0.08);
+      }
+      .idsq-selected-spaces-summary {
+        width: 100%;
+        margin-top: 3rem;
+        text-align: left;
+      }
+      .idsq-selected-spaces-summary .idsq-summary-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        text-align: left;
+      }
+      .idsq-selected-spaces-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+      }
+      .idsq-selected-spaces-horizontal {
+        gap: 0.5rem;
+      }
+      .idsq-space-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.65rem;
+        background: rgba(54,54,54,0.08);
+        border-radius: 999px;
+        padding: 0.5rem 0.75rem 0.5rem 1rem;
+        transition: background 0.2s ease;
+      }
+      .idsq-space-chip:hover {
+        background: rgba(54,54,54,0.12);
+      }
+      .idsq-chip-label {
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: rgba(44,44,44,0.85);
+      }
+      .idsq-chip-remove {
+        background: rgba(255,255,255,0.9);
+        border: 1px solid rgba(54,54,54,0.15);
+        border-radius: 999px;
+        padding: 0.35rem 0.75rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: rgba(44,44,44,0.7);
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      .idsq-chip-remove:hover,
+      .idsq-chip-remove:focus {
+        color: var(--idsq-primary);
+        border-color: var(--idsq-primary);
+        outline: none;
+      }
+      .idsq-button-container-right {
+        justify-content: flex-end;
+        width: 100%;
+        margin-top: 2.5rem;
+      }
+      .idsq-menu-anchor {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        align-items: center;
+      }
+      .idsq-menu {
+        position: relative;
+        display: inline-flex;
+      }
+      .idsq-menu-button {
+        width: 48px;
+        height: 48px;
+        min-width: 48px;
+        min-height: 48px;
+        border-radius: 50%;
+        background: var(--idsq-primary);
+        color: #ffffff;
+        border: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 10px 25px rgba(54,54,54,0.25);
+        transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+      }
+      .idsq-menu-button:hover,
+      .idsq-menu-button:focus {
+        transform: translateY(-2px);
+        box-shadow: 0 14px 32px rgba(54,54,54,0.3);
+        outline: none;
+      }
+      .idsq-menu-button span {
+        line-height: 1;
+        margin-top: -2px;
+      }
+      .idsq-menu-dropdown {
+        position: absolute;
+        right: 0;
+        bottom: calc(100% + 10px);
+        background: #ffffff;
+        border-radius: 16px;
+        box-shadow: 0 18px 45px rgba(54,54,54,0.18);
+        padding: 0.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        min-width: 220px;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(8px);
+        transition: opacity 0.2s ease, transform 0.2s ease;
+        z-index: 50;
+      }
+      .idsq-menu-dropdown::before {
+        content: '';
+        position: absolute;
+        bottom: -8px;
+        right: 18px;
+        width: 16px;
+        height: 16px;
+        background: #ffffff;
+        transform: rotate(45deg);
+        box-shadow: 0 18px 45px rgba(54,54,54,0.18);
+        clip-path: polygon(0 0, 100% 0, 100% 100%);
+      }
+      .idsq-menu-dropdown-open {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateY(0);
+      }
+      .idsq-menu-item {
+        width: 100%;
+        background: none;
+        border: none;
+        border-radius: 12px;
+        padding: 0.75rem 1rem;
+        text-align: left;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: rgba(44,44,44,0.85);
+        cursor: pointer;
+        transition: background 0.2s ease, color 0.2s ease;
+      }
+      .idsq-menu-item:hover,
+      .idsq-menu-item:focus {
+        background: rgba(54,54,54,0.08);
+        color: var(--idsq-primary);
+        outline: none;
       }
       .idsq-option-card.idsq-selected:hover {
         box-shadow: 0 12px 40px rgba(44, 44, 44, 0.2);
@@ -3374,7 +4202,7 @@
     
     section.appendChild(navigation);
     
-    showSection(mount, section);
+    showSection(mount, section, handlers);
   }
 
   function renderProjectType(config, mount, state, handlers) {
@@ -3454,7 +4282,7 @@
     
     section.appendChild(navigation);
     
-    showSection(mount, section);
+    showSection(mount, section, handlers);
   }
 
   function renderExpertQuestion(config, mount, state, handlers) {
@@ -3560,7 +4388,7 @@
     
     section.appendChild(navigation);
     
-    showSection(mount, section);
+    showSection(mount, section, handlers);
   }
 
   function renderMaterialsSelection(config, mount, state, handlers) {
@@ -3587,7 +4415,7 @@
       const title = createElement('h2', 'idsq-title');
       title.textContent = 'Materials selection is not available for this space yet.';
       section.appendChild(title);
-      showSection(mount, section);
+      showSection(mount, section, handlers);
       return;
     }
     
@@ -3716,7 +4544,7 @@
     
     section.appendChild(navigation);
     
-    showSection(mount, section);
+    showSection(mount, section, handlers);
   }
 
   function renderMaterialReview(config, mount, state, handlers) {
@@ -3779,7 +4607,7 @@
     
     section.appendChild(navigation);
     
-    showSection(mount, section);
+    showSection(mount, section, handlers);
   }
 
   function renderMaterialsComplete(config, mount, state, handlers) {
@@ -3824,7 +4652,7 @@
     section.appendChild(cta);
     section.appendChild(buttonContainer);
     
-    showSection(mount, section);
+    showSection(mount, section, handlers);
   }
 
   function buildQuiz(userConfig = {}) {
@@ -3888,6 +4716,11 @@
     // Pre-fill name from URL if provided
     const urlParticipantName = urlName ? decodeURIComponent(urlName.trim()) : null;
     
+    // Generate project ID if starting fresh
+    const generateProjectId = () => {
+      return 'proj_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+    };
+
     const state = savedState || {
       currentFlow: 'intro', // intro -> name -> space-selection -> word-association -> quiz -> lead -> final
       currentStep: -1,
@@ -3902,7 +4735,76 @@
       invited: isInvited,
       rid: urlRid || null,
       cp: urlCp || null,
+      // Whole-home materials selection state
+      projectId: generateProjectId(),
+      userId: null, // Future: Webflow Member ID
+      projectType: null, // 'new-home' | 'remodel'
+      spacesRequested: [], // Core spaces: Kitchen, Living Room, Primary Bedroom, Primary Bathroom, General Interior, General Exterior
+      additionalSpaces: [], // Duplicate spaces with quantity: [{ type: "Bedroom", count: 2, duplicateFrom: "Primary Bedroom", override: false }]
+      duplicateRules: {
+        allowDuplicateSpace: true,
+        fieldsToClone: ["style", "finishFamilies", "fixtures", "qualifiers"],
+        quantityForIdentical: true,
+        allowPerInstanceOverrides: true
+      },
+      expertAnswers: {}, // Structured by space: { Kitchen: { aria: {}, clara: {}, mason: {} }, ... }
+      categorySelectionBySpace: {}, // { Kitchen: { flooring: {}, backsplash: {}, ... }, ... }
+      categoryFlags: {
+        backsplash_use_slab: false,
+        backsplash_slab_source: null, // "countertop" | "wall-slab-only"
+        requires_heavy_slab_handling: false,
+        requires_ducted_hood: false,
+        panel_ready_appliances: false,
+        apron_sink_requires_base_mod: false,
+        restrict_wall_mount_faucet: false,
+        restrict_freestanding_tub: false,
+        heated_floor_desired: false
+      },
+      deferredDecisions: [], // [{ category: "Backsplash", decision: "Use slab", resolvesIn: "Countertops" }]
+      currentSpace: null, // Which space user is currently working on
+      currentCategory: null, // Which category in current space
+      currentCategoryIndex: 0, // Index in categories array for current space
+      projectContext: {}, // Project type answers and context
+      currentExpert: null, // 'aria' | 'clara' | 'mason'
+      currentExpertQuestion: 0, // Index of current question for current expert
+      materialsSelections: {}, // Material selections per category (legacy: by category ID, new: by space + category)
+      categoryQualifiers: {}, // Qualifier answers per space + category: { Kitchen: { backsplash: { BACK_Q1: "blend", ... } } }
+      lastSaved: null, // Timestamp for save/resume
+      spaceOrder: [], // Order in which spaces will be processed
+      completedSpaces: [], // Array of space IDs that have been completed
     };
+
+    // Ensure new fields exist in savedState (backward compatibility)
+    if (savedState) {
+      if (!savedState.projectId) savedState.projectId = generateProjectId();
+      if (!savedState.spacesRequested) savedState.spacesRequested = [];
+      if (!savedState.additionalSpaces) savedState.additionalSpaces = [];
+      if (!savedState.duplicateRules) savedState.duplicateRules = {
+        allowDuplicateSpace: true,
+        fieldsToClone: ["style", "finishFamilies", "fixtures", "qualifiers"],
+        quantityForIdentical: true,
+        allowPerInstanceOverrides: true
+      };
+      if (!savedState.expertAnswers) savedState.expertAnswers = {};
+      if (!savedState.categorySelectionBySpace) savedState.categorySelectionBySpace = {};
+      if (!savedState.categoryFlags) savedState.categoryFlags = {
+        backsplash_use_slab: false,
+        backsplash_slab_source: null,
+        requires_heavy_slab_handling: false,
+        requires_ducted_hood: false,
+        panel_ready_appliances: false,
+        apron_sink_requires_base_mod: false,
+        restrict_wall_mount_faucet: false,
+        restrict_freestanding_tub: false,
+        heated_floor_desired: false
+      };
+      if (!savedState.deferredDecisions) savedState.deferredDecisions = [];
+      if (savedState.currentSpace === undefined) savedState.currentSpace = null;
+      if (savedState.currentCategory === undefined) savedState.currentCategory = null;
+      if (!savedState.categoryQualifiers) savedState.categoryQualifiers = {};
+      if (!savedState.spaceOrder) savedState.spaceOrder = [];
+      if (!savedState.completedSpaces) savedState.completedSpaces = [];
+    }
     
     // If state was loaded but URL has new invitation params, update them
     if (savedState) {
@@ -3920,10 +4822,17 @@
     if (config.testMode && config.testData) {
       Object.assign(state, config.testData);
       state.currentFlow = 'expert-intro';
-      state.projectContext = {};
-      state.currentExpert = 'aria';
-      state.currentExpertQuestion = 0;
-      state.materialsSelections = {};
+      // Ensure projectContext exists (may be empty for testing)
+      if (!state.projectContext) state.projectContext = {};
+      // Initialize expert question tracking
+      if (state.currentExpert === undefined) state.currentExpert = 'aria';
+      if (state.currentExpertQuestion === undefined) state.currentExpertQuestion = 0;
+      // Initialize materials selections if not provided
+      if (!state.materialsSelections) state.materialsSelections = {};
+      // Initialize expert answers structure if not provided
+      if (!state.expertAnswers) state.expertAnswers = {};
+      if (!state.categorySelectionBySpace) state.categorySelectionBySpace = {};
+      if (!state.categoryQualifiers) state.categoryQualifiers = {};
       saveState(state);
     }
 
@@ -3964,9 +4873,22 @@
       },
       onSelectSpace(spaceId) {
         state.selectedSpace = spaceId;
-        state.currentFlow = 'word-association';
         state.choices = [];
         state.wordChoice = null;
+
+        if (spaceId === 'general') {
+          state.currentFlow = 'whole-home-selection';
+          ensureSpacesRequested(state);
+          if (!state.spacesRequested || state.spacesRequested.length === 0) {
+            state.spacesRequested = WHOLE_HOME_DEFAULT_SPACES.map((space) => ({ ...space }));
+          }
+          state.currentSpace = null;
+          saveState(state);
+          renderWholeHomeSpaceSelection(config, mount, state, handlers, saveState);
+          return;
+        }
+
+        state.currentFlow = 'word-association';
         saveState(state);
         renderWordAssociation(config, mount, state, handlers);
       },
@@ -3977,6 +4899,20 @@
         saveState(state);
         const steps = getStepsForSpace(state.selectedSpace);
         renderStep(config, mount, state, handlers, steps);
+      },
+      onContinueFromWholeHomeSelection() {
+        if (!state.spacesRequested || state.spacesRequested.length === 0) {
+          return;
+        }
+        state.currentFlow = 'word-association';
+        state.selectedSpace = 'general';
+        state.spaceOrder = state.spacesRequested.map((space) => normalizeSpaceId(space.id));
+        state.currentSpace = state.spaceOrder[0] || 'general';
+        state.currentStep = 0;
+        state.wordChoice = null;
+        state.choices = [];
+        saveState(state);
+        renderWordAssociation(config, mount, state, handlers);
       },
       onSelectOption(option) {
         state.choices[state.currentStep] = option;
@@ -3990,21 +4926,21 @@
           state.currentStep += 1;
               saveState(state);
               renderStep(config, mount, state, handlers, steps);
-            });
+            }, handlers);
           } else if (state.currentStep === 1) {
             // Just completed round 2
             renderMilestoneTip(config, mount, state.selectedSpace, 2, () => {
               state.currentStep += 1;
               saveState(state);
               renderStep(config, mount, state, handlers, steps);
-            });
+            }, handlers);
           } else if (state.currentStep === 2) {
             // Just completed round 3
             renderMilestoneTip(config, mount, state.selectedSpace, 3, () => {
               state.currentStep += 1;
               saveState(state);
               renderStep(config, mount, state, handlers, steps);
-            });
+            }, handlers);
         } else {
             state.currentStep += 1;
             saveState(state);
@@ -4027,6 +4963,7 @@
           state.participantName = leadData.name.trim();
         }
         state.newsLetterSignup = !!leadData.newsLetterSignup;
+        state.currentFlow = 'final-selection';
         saveState(state);
         renderFinalSelection(config, mount, state, handlers);
       },
@@ -4056,10 +4993,16 @@
           saveState(state);
           renderWordAssociation(config, mount, state, handlers);
         } else if (state.currentFlow === 'word-association') {
-          // Go back to space selection
-          state.currentFlow = 'space-selection';
-          saveState(state);
-          renderSpaceSelection(config, mount, handlers);
+          // Go back to space selection (or whole-home selection if applicable)
+          if (state.selectedSpace === 'general') {
+            state.currentFlow = 'whole-home-selection';
+            saveState(state);
+            renderWholeHomeSpaceSelection(config, mount, state, handlers, saveState);
+          } else {
+            state.currentFlow = 'space-selection';
+            saveState(state);
+            renderSpaceSelection(config, mount, handlers);
+          }
         }
       },
       onGoBackToLastStep() {
@@ -4105,10 +5048,14 @@
           handlers.onSubmitLead(leadPayload);
         } else if (config.leadCapture.enable && !state.invited) {
           // Still need to collect info, show newsletter form (but not for invited users)
+          state.currentFlow = 'lead-capture';
+          saveState(state);
           handlers._state = state;
           renderLeadCapture(config, mount, handlers);
         } else {
           // No lead capture or invited user, go directly to final selection
+          state.currentFlow = 'final-selection';
+          saveState(state);
           renderFinalSelection(config, mount, state, handlers);
         }
       },
@@ -4147,6 +5094,96 @@
           state.newsLetterSignup = false;
           renderIntro(config, mount, handlers);
         }
+      },
+      onRestartSection() {
+        const flow = state.currentFlow;
+        const earlyFlows = ['intro', 'name-capture', 'space-selection', 'whole-home-selection'];
+        if (!flow || earlyFlows.includes(flow)) {
+          handlers.onRestart();
+          return;
+        }
+
+        if (flow === 'word-association') {
+          state.wordChoice = null;
+          state.currentFlow = 'word-association';
+          saveState(state);
+          renderWordAssociation(config, mount, state, handlers);
+          return;
+        }
+
+        if (flow === 'quiz') {
+          state.currentStep = 0;
+          state.choices = [];
+          state.currentFlow = 'quiz';
+          saveState(state);
+          const steps = getStepsForSpace(state.selectedSpace);
+          renderStep(config, mount, state, handlers, steps);
+          return;
+        }
+
+        if (flow === 'expert-intro') {
+          state.projectContext = {};
+          state.currentExpert = 'aria';
+          state.currentExpertQuestion = 0;
+          saveState(state);
+          renderExpertIntro(config, mount, state, handlers);
+          return;
+        }
+
+        if (flow === 'project-type') {
+          if (state.projectContext) {
+            state.projectContext.projectType = null;
+          }
+          saveState(state);
+          renderProjectType(config, mount, state, handlers);
+          return;
+        }
+
+        if (flow === 'project-context') {
+          if (state.projectContext && state.currentExpert) {
+            state.projectContext[state.currentExpert] = {};
+          }
+          state.currentExpertQuestion = 0;
+          state.currentFlow = 'project-context';
+          saveState(state);
+          renderExpertQuestion(config, mount, state, handlers);
+          return;
+        }
+
+        if (flow === 'materials-selection') {
+          handlers.onRestartMaterials();
+          return;
+        }
+
+        if (flow === 'material-review') {
+          const categories = config.materialsBySpace[state.selectedSpace] || [];
+          const currentCategory = categories[state.currentCategoryIndex] || null;
+          if (currentCategory) {
+            state.materialsSelections[currentCategory.id] = {
+              round: 1,
+              winners: [],
+            };
+          }
+          state.currentFlow = 'materials-selection';
+          saveState(state);
+          renderMaterialsSelection(config, mount, state, handlers);
+          return;
+        }
+
+        if (flow === 'lead-capture') {
+          handlers._state = state;
+          saveState(state);
+          renderLeadCapture(config, mount, handlers);
+          return;
+        }
+
+        if (flow === 'final-selection') {
+          saveState(state);
+          renderFinalSelection(config, mount, state, handlers);
+          return;
+        }
+
+        handlers.onRestart();
       },
       onSelectMaterials() {
         // Start expert-guided flow with intro
@@ -4307,6 +5344,8 @@
         renderIntro(config, mount, handlers);
       } else if (flow === 'name-capture') {
         renderNameCapture(config, mount, handlers);
+      } else if (flow === 'whole-home-selection') {
+        renderWholeHomeSpaceSelection(config, mount, state, handlers, saveState);
       } else if (flow === 'space-selection') {
         renderSpaceSelection(config, mount, handlers);
       } else if (flow === 'word-association') {
@@ -4314,6 +5353,11 @@
       } else if (flow === 'quiz') {
         const steps = getStepsForSpace(state.selectedSpace);
         renderStep(config, mount, state, handlers, steps);
+      } else if (flow === 'lead-capture') {
+        handlers._state = state;
+        renderLeadCapture(config, mount, handlers);
+      } else if (flow === 'final-selection') {
+        renderFinalSelection(config, mount, state, handlers);
       } else if (flow === 'expert-intro') {
         renderExpertIntro(config, mount, state, handlers);
       } else if (flow === 'project-type') {
