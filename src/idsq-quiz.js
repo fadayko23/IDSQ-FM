@@ -1615,6 +1615,7 @@
       submitButton.style.display = '';
       submitButton.disabled = false;
       submitButton.classList.remove('idsq-hidden');
+      buttonContainer.classList.add('idsq-name-has-primary');
     }
     
     const skipButton = createElement('button', 'idsq-button idsq-button-secondary', { type: 'button' });
@@ -1663,8 +1664,10 @@
       submitButton.style.display = hasValue ? '' : 'none';
       if (hasValue) {
         submitButton.classList.remove('idsq-hidden');
+        buttonContainer.classList.add('idsq-name-has-primary');
       } else {
         submitButton.classList.add('idsq-hidden');
+        buttonContainer.classList.remove('idsq-name-has-primary');
       }
       if (current && !isNameValid(current)) {
         input.style.borderColor = '#ef4444';
@@ -1681,7 +1684,7 @@
     input.focus();
   }
 
-  function renderSpaceSelection(config, mount, handlers) {
+  function renderSpaceSelection(config, mount, state, handlers) {
     const section = createElement('section', 'idsq-intro');
     const title = createElement('h2', 'idsq-title');
     title.textContent = config.copy.spaceSelectionTitle;
@@ -1697,6 +1700,9 @@
       card.addEventListener('click', () => handlers.onSelectSpace(space.id));
       
       card.classList.add('idsq-space-card');
+      if (state && state.selectedSpace === space.id) {
+        card.classList.add('idsq-selected');
+      }
 
       const icon = createElement('div', 'idsq-space-icon');
       icon.textContent = space.icon;
@@ -1716,6 +1722,18 @@
     section.appendChild(title);
     section.appendChild(description);
     section.appendChild(grid);
+
+    const actions = createElement('div', 'idsq-button-container idsq-space-selection-actions');
+    if (state && state.selectedSpace) {
+      actions.classList.add('idsq-space-selection-has-selection');
+      const continueButton = createElement('button', 'idsq-button idsq-button-primary', { type: 'button' });
+      continueButton.textContent = 'Continue';
+      continueButton.addEventListener('click', () => {
+        handlers.onSelectSpace(state.selectedSpace);
+      });
+      actions.appendChild(continueButton);
+    }
+    section.appendChild(actions);
 
     showSection(mount, section, handlers);
   }
@@ -3373,6 +3391,20 @@
         width: 100%;
         margin-top: 2.5rem;
       }
+      .idsq-space-selection-actions {
+        width: 100%;
+        margin-top: 2.5rem;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 0.75rem;
+      }
+      .idsq-space-selection-actions.idsq-menu-anchor {
+        justify-content: flex-end;
+      }
+      .idsq-space-selection-actions .idsq-button-primary {
+        flex: 0 0 auto;
+      }
       .idsq-menu-container {
         width: 100%;
         max-width: 1200px;
@@ -3833,15 +3865,32 @@
       .idsq-name-buttons {
         display: flex;
         gap: 1rem;
-        justify-content: flex-end;
+        justify-content: center;
         align-items: center;
         margin-top: 1.5rem;
+        flex-wrap: wrap;
+      }
+      .idsq-name-buttons.idsq-menu-anchor {
+        justify-content: center;
+      }
+      .idsq-name-buttons.idsq-name-has-primary {
         flex-wrap: nowrap;
       }
+      .idsq-name-buttons.idsq-name-has-primary .idsq-button-secondary {
+        margin-left: auto;
+      }
+      .idsq-name-buttons.idsq-name-has-primary .idsq-menu {
+        margin-left: 0.75rem;
+      }
       @media (max-width: 600px) {
-        .idsq-name-buttons {
-          justify-content: center;
+        .idsq-name-buttons.idsq-name-has-primary {
           flex-wrap: wrap;
+        }
+        .idsq-name-buttons.idsq-name-has-primary .idsq-button-secondary {
+          margin-left: 0;
+        }
+        .idsq-name-buttons.idsq-name-has-primary .idsq-menu {
+          margin-left: 0;
         }
       }
       .idsq-input-error {
@@ -4907,7 +4956,7 @@
         if (state.participantName && (state.invited || state.leadData?.email)) {
           state.currentFlow = 'space-selection';
           saveState(state);
-          renderSpaceSelection(config, mount, handlers);
+          renderSpaceSelection(config, mount, state, handlers);
         } else {
           state.currentFlow = 'name-capture';
           saveState(state);
@@ -4918,7 +4967,7 @@
         state.participantName = name;
         state.currentFlow = 'space-selection';
         saveState(state);
-        renderSpaceSelection(config, mount, handlers);
+        renderSpaceSelection(config, mount, state, handlers);
       },
       onSelectSpace(spaceId) {
         state.selectedSpace = spaceId;
@@ -5050,7 +5099,7 @@
           } else {
             state.currentFlow = 'space-selection';
             saveState(state);
-            renderSpaceSelection(config, mount, handlers);
+            renderSpaceSelection(config, mount, state, handlers);
           }
         }
       },
@@ -5396,7 +5445,7 @@
       } else if (flow === 'whole-home-selection') {
         renderWholeHomeSpaceSelection(config, mount, state, handlers, saveState);
       } else if (flow === 'space-selection') {
-        renderSpaceSelection(config, mount, handlers);
+        renderSpaceSelection(config, mount, state, handlers);
       } else if (flow === 'word-association') {
         renderWordAssociation(config, mount, state, handlers);
       } else if (flow === 'quiz') {
