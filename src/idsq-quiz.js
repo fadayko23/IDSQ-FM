@@ -1334,7 +1334,9 @@
         mount.innerHTML = '';
         mount.appendChild(section);
         requestAnimationFrame(() => {
-          section.classList.add('idsq-animate-in');
+        section.classList.add('idsq-animate-in');
+        const shouldScroll = section.dataset.noScroll !== 'true';
+        if (shouldScroll) {
           // Scroll to top of quiz container on each selection, with offset for fixed header
           if (mount && mount.id === 'idsq') {
             const rect = mount.getBoundingClientRect();
@@ -1344,6 +1346,7 @@
           } else {
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }
+        }
           attachMenuToSection(section, handlers);
         });
       },
@@ -1592,9 +1595,11 @@
       placeholder: config.copy.namePlaceholder,
       maxlength: '50',
       required: 'true',
+      name: 'participantName',
+      id: 'idsq-participant-name',
     });
     
-    const buttonContainer = createElement('div', 'idsq-name-buttons');
+    const buttonContainer = createElement('div', 'idsq-button-container idsq-name-buttons');
     
     const submitButton = createElement('button', 'idsq-button idsq-button-primary idsq-hidden', { type: 'submit' });
     submitButton.textContent = 'Continue';
@@ -1770,6 +1775,7 @@
     const showCustomInput = !!state.showCustomSpaceInput || customSpaces.length > 0;
 
     const section = createElement('section', 'idsq-intro idsq-whole-home');
+    section.dataset.noScroll = 'true';
 
     const title = createElement('h2', 'idsq-title');
     title.textContent = 'Which spaces would you like to design?';
@@ -1962,7 +1968,7 @@
       if (state.otherSpacesVisibleCount < filteredOtherSpaces.length) {
         const loadMoreContainer = createElement('div', 'idsq-load-more-container');
         const remaining = filteredOtherSpaces.length - state.otherSpacesVisibleCount;
-        const loadMoreButton = createElement('button', 'idsq-button idsq-button-secondary', { type: 'button' });
+        const loadMoreButton = createElement('button', 'idsq-button idsq-button-primary idsq-load-more-button', { type: 'button' });
         loadMoreButton.textContent = `Load more spaces (${remaining} remaining)`;
         loadMoreButton.addEventListener('click', () => {
           state.otherSpacesVisibleCount = Math.min(
@@ -1987,7 +1993,7 @@
           label.textContent = space.name;
           chip.appendChild(label);
           const removeBtn = createElement('button', 'idsq-chip-remove', { type: 'button' });
-          removeBtn.textContent = 'Remove';
+          removeBtn.textContent = 'x';
           removeBtn.setAttribute('aria-label', `Remove ${space.name}`);
           removeBtn.addEventListener('click', (event) => {
             event.stopPropagation();
@@ -2017,7 +2023,7 @@
         label.textContent = space.name;
         chip.appendChild(label);
         const removeBtn = createElement('button', 'idsq-chip-remove', { type: 'button' });
-        removeBtn.textContent = 'Remove';
+        removeBtn.textContent = 'x';
         removeBtn.setAttribute('aria-label', `Remove ${space.name}`);
         removeBtn.addEventListener('click', (event) => {
           event.stopPropagation();
@@ -2065,18 +2071,15 @@
     claraWrapper.appendChild(claraInfo);
     
     const title = createElement('h2', 'idsq-title');
-    // Choose prompt based on selected space, fallback to general
+    // Choose prompt based on selected space to drive vocabulary, while keeping UI copy consistent
     const waSpaceKey = state && state.selectedSpace ? state.selectedSpace : 'general';
     const waConfig = (config.wordAssociationBySpace && config.wordAssociationBySpace[waSpaceKey])
       ? config.wordAssociationBySpace[waSpaceKey]
       : (config.wordAssociationBySpace?.general || { prompt: config.copy.wordAssociationTitle, words: [] });
-    title.textContent = waConfig.prompt || config.copy.wordAssociationTitle;
+    title.textContent = 'Which space do you prefer?';
     const description = createElement('p', 'idsq-description');
-    if (state.participantName) {
-      description.textContent = `Trust your intuition, ${state.participantName}—choose the word that speaks to you.`;
-    } else {
-      description.textContent = config.copy.wordAssociationDescription;
-    }
+    const descriptionCopy = 'Trust your intuition\u2014Which space would you prefer to live in?';
+    description.textContent = descriptionCopy;
     
     section.appendChild(claraWrapper);
 
@@ -2097,12 +2100,12 @@
     });
 
     const navigation = createElement('div', 'idsq-step-navigation');
-    const restartButton = createElement('button', 'idsq-button idsq-button-secondary idsq-restart-btn');
-    restartButton.textContent = 'Start Over';
-    restartButton.addEventListener('click', handlers.onRestart);
-    navigation.appendChild(restartButton);
-    const spacer = createElement('div', 'idsq-step-spacer');
-    navigation.appendChild(spacer);
+    if (handlers && typeof handlers.onGoBack === 'function') {
+      const previousButton = createElement('button', 'idsq-button idsq-button-secondary');
+      previousButton.textContent = '← Previous';
+      previousButton.addEventListener('click', handlers.onGoBack);
+      navigation.appendChild(previousButton);
+    }
 
     section.appendChild(title);
     section.appendChild(description);
@@ -2184,17 +2187,7 @@
     });
 
     const navigation = createElement('div', 'idsq-step-navigation');
-    
-    // Start Over button
-    const restartButton = createElement('button', 'idsq-button idsq-button-secondary idsq-restart-btn');
-    restartButton.textContent = 'Start Over';
-    restartButton.addEventListener('click', handlers.onRestart);
-    navigation.appendChild(restartButton);
-    
-    // Spacer
-    const spacer = createElement('div', 'idsq-step-spacer');
-    navigation.appendChild(spacer);
-    
+
     // Back button (only show if not on first step)
     if (state.currentStep > 0) {
       const backButton = createElement('button', 'idsq-button idsq-button-secondary');
@@ -2228,9 +2221,7 @@
     section.appendChild(prompt);
     section.appendChild(instruction);
     section.appendChild(grid);
-    if (navigation.children.length > 0) {
-      section.appendChild(navigation);
-    }
+    section.appendChild(navigation);
 
     showSection(mount, section, handlers);
   }
@@ -2621,15 +2612,9 @@
       grid.appendChild(card);
     });
 
-    // Add Start Over and Previous buttons (matching layout of other quiz steps)
+    // Navigation (Previous + menu)
     const navigation = createElement('div', 'idsq-step-navigation');
-    
-    // Start Over button (left side)
-    const restartButton = createElement('button', 'idsq-button idsq-button-secondary idsq-restart-btn');
-    restartButton.textContent = 'Start Over';
-    restartButton.addEventListener('click', handlers.onRestart);
-    navigation.appendChild(restartButton);
-    
+
     // Previous button (right side) - goes back to round 4
     const previousButton = createElement('button', 'idsq-button idsq-button-secondary');
     previousButton.textContent = '← Previous';
@@ -3131,18 +3116,38 @@
         align-items: stretch;
       }
       .idsq-core-space-grid {
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 1.5rem;
+      }
+      @media (max-width: 1024px) {
+        .idsq-core-space-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      @media (max-width: 640px) {
+        .idsq-core-space-grid {
+          grid-template-columns: repeat(1, minmax(0, 1fr));
+        }
       }
       .idsq-space-card {
         padding: 1.5rem;
-        align-items: flex-start;
-        background: linear-gradient(135deg, rgba(54,54,54,0.035), rgba(255,255,255,0.9));
-        min-height: 160px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        background: rgba(54,54,54,0.03);
+        border: 1px solid rgba(54,54,54,0.1);
+        box-shadow: 0 8px 20px rgba(54, 54, 54, 0.3);
+        min-height: 200px;
+        transition: box-shadow 0.2s ease;
+      }
+      .idsq-space-card:hover {
+        box-shadow: 0 12px 30px rgba(54, 54, 54, 0.4);
       }
       .idsq-space-card .idsq-space-icon {
-        font-size: 2rem;
-        margin-bottom: 1rem;
+        font-size: 3rem;
+        margin-bottom: 0.75rem;
       }
       .idsq-space-card .idsq-option-label {
         display: flex;
@@ -3160,20 +3165,45 @@
         text-align: left;
       }
       .idsq-other-spaces-grid {
-        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        grid-template-columns: repeat(6, minmax(0, 1fr));
         gap: 0.75rem;
+        justify-items: stretch;
       }
-      @media (min-width: 1024px) {
+      @media (max-width: 1280px) {
         .idsq-other-spaces-grid {
-          grid-template-columns: repeat(10, minmax(0, 1fr));
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+      }
+      @media (max-width: 900px) {
+        .idsq-other-spaces-grid {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+      }
+      @media (max-width: 640px) {
+        .idsq-other-spaces-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      @media (max-width: 420px) {
+        .idsq-other-spaces-grid {
+          grid-template-columns: repeat(1, minmax(0, 1fr));
         }
       }
       .idsq-other-space-card {
-        padding: 0.85rem 0.75rem;
-        border-radius: 12px;
+        padding: 0.65rem 0.75rem;
+        border-radius: 999px;
         min-height: auto;
-        background: #f7f7f7;
+        background: rgba(54,54,54,0.03);
+        border: 1px solid rgba(54,54,54,0.1);
+        box-shadow: 0 8px 20px rgba(54, 54, 54, 0.3);
         justify-content: center;
+        align-items: center;
+        display: inline-flex;
+        transition: box-shadow 0.2s ease, background 0.2s ease;
+      }
+      .idsq-other-space-card:hover {
+        background: rgba(54,54,54,0.06);
+        box-shadow: 0 12px 30px rgba(54, 54, 54, 0.4);
       }
       .idsq-other-space-card .idsq-option-label,
       .idsq-other-space-card .idsq-option-title {
@@ -3191,9 +3221,17 @@
         align-items: stretch;
         gap: 0.65rem;
         padding: 1rem;
-        background: #ffffff;
-        border: 2px solid rgba(54,54,54,0.08);
+        background: rgba(54,54,54,0.03);
+        border: 1px solid rgba(54,54,54,0.1);
+        box-shadow: 0 8px 20px rgba(54, 54, 54, 0.3);
         cursor: default;
+        margin-left: auto;
+        margin-right: auto;
+        border-radius: 16px;
+        transition: box-shadow 0.2s ease;
+      }
+      .idsq-custom-space-card:hover {
+        box-shadow: 0 12px 30px rgba(54, 54, 54, 0.4);
       }
       .idsq-custom-space-label {
         font-size: 0.85rem;
@@ -3287,13 +3325,16 @@
         display: inline-flex;
         align-items: center;
         gap: 0.65rem;
-        background: rgba(54,54,54,0.08);
+        background: rgba(54,54,54,0.03);
+        border: 1px solid rgba(54,54,54,0.1);
         border-radius: 999px;
         padding: 0.5rem 0.75rem 0.5rem 1rem;
-        transition: background 0.2s ease;
+        box-shadow: 0 8px 20px rgba(54, 54, 54, 0.3);
+        transition: background 0.2s ease, box-shadow 0.2s ease;
       }
       .idsq-space-chip:hover {
-        background: rgba(54,54,54,0.12);
+        background: rgba(54,54,54,0.06);
+        box-shadow: 0 12px 30px rgba(54, 54, 54, 0.4);
       }
       .idsq-chip-label {
         font-weight: 600;
@@ -3339,22 +3380,22 @@
         min-width: 48px;
         min-height: 48px;
         border-radius: 50%;
-        background: var(--idsq-primary);
-        color: #ffffff;
-        border: none;
+        background: #ffffff;
+        color: var(--idsq-primary);
+        border: 2px solid var(--idsq-primary);
         display: inline-flex;
         align-items: center;
         justify-content: center;
         font-size: 1.75rem;
         font-weight: 700;
         cursor: pointer;
-        box-shadow: 0 10px 25px rgba(54,54,54,0.25);
-        transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+        box-shadow: 0 8px 20px rgba(54, 54, 54, 0.3);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
       }
       .idsq-menu-button:hover,
       .idsq-menu-button:focus {
         transform: translateY(-2px);
-        box-shadow: 0 14px 32px rgba(54,54,54,0.3);
+        box-shadow: 0 12px 30px rgba(54, 54, 54, 0.4);
         outline: none;
       }
       .idsq-menu-button span {
@@ -3420,11 +3461,12 @@
       }
       .idsq-step-navigation {
         display: flex;
-        justify-content: space-between;
+        justify-content: flex-end;
         align-items: center;
         width: 100%;
         margin-top: 2rem;
-        gap: 1rem;
+        gap: 0.75rem;
+        flex-wrap: wrap;
       }
       .idsq-step-spacer {
         flex: 1;
@@ -3767,8 +3809,10 @@
       .idsq-name-buttons {
         display: flex;
         gap: 1rem;
-        justify-content: center;
+        justify-content: flex-end;
+        align-items: center;
         margin-top: 1.5rem;
+        flex-wrap: wrap;
       }
       .idsq-input-error {
         color: #ef4444;
@@ -4194,13 +4238,6 @@
     
     // Navigation
     const navigation = createElement('div', 'idsq-step-navigation');
-    const restartButton = createElement('button', 'idsq-button idsq-button-secondary idsq-restart-btn');
-    restartButton.textContent = 'Start Over';
-    restartButton.addEventListener('click', handlers.onRestart);
-    navigation.appendChild(restartButton);
-    
-    const spacer = createElement('div', 'idsq-step-spacer');
-    navigation.appendChild(spacer);
     
     const continueButton = createElement('button', 'idsq-button idsq-button-primary');
     continueButton.textContent = 'Let\'s Get Started →';
@@ -4270,13 +4307,6 @@
     
     // Navigation
     const navigation = createElement('div', 'idsq-step-navigation');
-    const restartButton = createElement('button', 'idsq-button idsq-button-secondary idsq-restart-btn');
-    restartButton.textContent = 'Start Over';
-    restartButton.addEventListener('click', handlers.onRestart);
-    navigation.appendChild(restartButton);
-    
-    const spacer = createElement('div', 'idsq-step-spacer');
-    navigation.appendChild(spacer);
     
     // Continue button only if a selection has been made
     const hasSelection = state.projectContext.projectType;
@@ -4377,13 +4407,6 @@
     
     // Navigation
     const navigation = createElement('div', 'idsq-step-navigation');
-    const restartButton = createElement('button', 'idsq-button idsq-button-secondary idsq-restart-btn');
-    restartButton.textContent = 'Start Over';
-    restartButton.addEventListener('click', handlers.onRestart);
-    navigation.appendChild(restartButton);
-    
-    const spacer = createElement('div', 'idsq-step-spacer');
-    navigation.appendChild(spacer);
     
     // Back button if not first question
     if (questionIndex > 0) {
@@ -4531,16 +4554,6 @@
     // Navigation matching quiz format
     const navigation = createElement('div', 'idsq-step-navigation');
     
-    // Start Over button
-    const startOverButton = createElement('button', 'idsq-button idsq-button-secondary idsq-restart-btn');
-    startOverButton.textContent = 'Start Over';
-    startOverButton.addEventListener('click', handlers.onRestart);
-    navigation.appendChild(startOverButton);
-    
-    // Spacer
-    const spacer = createElement('div', 'idsq-step-spacer');
-    navigation.appendChild(spacer);
-    
     // Back button (only show if not on first category and first round)
     if (state.currentCategoryIndex > 0 || categoryState.round > 1) {
       const backButton = createElement('button', 'idsq-button idsq-button-secondary');
@@ -4603,9 +4616,6 @@
       handlers.onReselectMaterial();
     });
     navigation.appendChild(reselectButton);
-    
-    const spacer = createElement('div', 'idsq-step-spacer');
-    navigation.appendChild(spacer);
     
     const confirmButton = createElement('button', 'idsq-button idsq-button-primary');
     confirmButton.textContent = 'Confirm & Continue →';
