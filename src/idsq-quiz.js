@@ -3590,8 +3590,8 @@
         margin: 0 auto 1.5rem;
       }
       .idsq-clara-profile {
-        width: 80px;
-        height: 80px;
+        width: 64px;
+        height: 64px;
         border-radius: 50%;
         object-fit: cover;
         border: 3px solid #ffffff;
@@ -3625,8 +3625,8 @@
         margin-bottom: 1rem;
       }
       .idsq-clara-mini {
-        width: 50px;
-        height: 50px;
+        width: 64px;
+        height: 64px;
         border-radius: 50%;
         object-fit: cover;
         border: 2px solid #ffffff;
@@ -3643,12 +3643,21 @@
         -o-user-drag: none;
       }
       .idsq-clara-info {
-        font-size: 0.875rem;
+        font-weight: 500;
+        font-size: 16px;
+        line-height: 1.875;
+        margin: 0;
+        opacity: .85;
         color: rgba(54, 54, 54, 0.7);
-        margin-top: 0;
       }
       .idsq-clara-info-name {
-        font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    opacity: .7;
+    margin: 0 0 .25rem 0;
+    font-weight: 500;
+    font-size: 16px;
+    line-height: 30px;
         color: #363636;
       }
       .idsq-word-container {
@@ -3918,8 +3927,8 @@
           padding: 0.5rem 1rem;
         }
         .idsq-clara-profile {
-          width: 70px;
-          height: 70px;
+          width: 64px;
+          height: 64px;
         }
         .idsq-clara-profile-wrapper::after {
           border-left: 10px solid transparent;
