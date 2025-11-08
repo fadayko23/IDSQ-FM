@@ -1797,11 +1797,14 @@
 
     const title = createElement('h2', 'idsq-title');
     title.textContent = 'Which spaces would you like to design?';
+    if (state.selectedSpace === 'general') {
+      title.textContent = 'Which spaces belong in your Home?';
+    }
     section.appendChild(title);
 
     const description = createElement('p', 'idsq-description');
-    description.textContent =
-      'Core rooms are pre-selected. Add or remove spaces below, and use “Other” to browse additional rooms or add your own.';
+    description.innerHTML =
+      '<strong>Core rooms are pre-selected.</strong><br>Add or remove spaces below, and use “Other” to browse additional rooms or add your own.';
     section.appendChild(description);
 
     const coreSpaces = [
@@ -2063,7 +2066,15 @@
     }
 
     if (state.spacesRequested && state.spacesRequested.length > 0) {
-      const buttonRow = createElement('div', 'idsq-button-container idsq-button-container-right');
+      const buttonRow = createElement('div', 'idsq-button-container idsq-button-container-right idsq-whole-home-actions');
+
+      if (handlers && typeof handlers.onGoBack === 'function') {
+        const previousButton = createElement('button', 'idsq-button idsq-button-secondary', { type: 'button' });
+        previousButton.textContent = '← Previous';
+        previousButton.addEventListener('click', handlers.onGoBack);
+        buttonRow.appendChild(previousButton);
+      }
+
       const continueButton = createElement('button', 'idsq-button idsq-button-primary', { type: 'button' });
       continueButton.textContent = 'Continue';
       continueButton.addEventListener('click', () => {
@@ -3404,6 +3415,13 @@
       }
       .idsq-space-selection-actions .idsq-button-primary {
         flex: 0 0 auto;
+      }
+      .idsq-whole-home-actions {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
       }
       .idsq-menu-container {
         width: 100%;
@@ -5101,6 +5119,10 @@
             saveState(state);
             renderSpaceSelection(config, mount, state, handlers);
           }
+        } else if (state.currentFlow === 'whole-home-selection') {
+          state.currentFlow = 'space-selection';
+          saveState(state);
+          renderSpaceSelection(config, mount, state, handlers);
         }
       },
       onGoBackToLastStep() {
