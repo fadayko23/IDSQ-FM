@@ -27,17 +27,22 @@
                   enable: true,
                 },
                 // Set to true to skip quiz and start at materials selection
-                testMode: true,
-                // Mock data for testing materials selection
-                testData: {
-                  selectedSpace: 'bathroom',
-                  participantName: 'Test User',
-                  finalStyle: {
-                    styleId: 'transitional',
-                    styleName: 'Transitional',
-                    description: 'Test transitional style description',
-                  }
-                }
+                testMode: false,
+                // Mock data for testing materials selection - auto-populate whole home
+                // testData: {
+                //   selectedSpace: 'general', // Whole home
+                //   participantName: 'Test User',
+                //   spacesRequested: [
+                //     { id: 'kitchen', name: 'Kitchen' },
+                //     { id: 'bathroom', name: 'Primary Bathroom' },
+                //     { id: 'bedroom', name: 'Primary Bedroom' },
+                //   ],
+                //   finalStyle: {
+                //     styleId: 'transitional',
+                //     styleName: 'Transitional',
+                //     description: 'Test transitional style description',
+                //   }
+                // }
               });
               console.log('buildQuiz called successfully');
             } catch (e) {
