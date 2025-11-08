@@ -1748,8 +1748,8 @@
       stateMutated = true;
     }
 
-    if (!state.otherSpacesVisibleCount || state.otherSpacesVisibleCount < 20) {
-      state.otherSpacesVisibleCount = 20;
+    if (!state.otherSpacesVisibleCount || state.otherSpacesVisibleCount < 18) {
+      state.otherSpacesVisibleCount = 18;
       stateMutated = true;
     }
 
@@ -1772,7 +1772,7 @@
     }
 
     const showOtherSpaces = !!state.showOtherSpaces || additionalSelected.length > 0 || customSpaces.length > 0;
-    const showCustomInput = !!state.showCustomSpaceInput || customSpaces.length > 0;
+    const showCustomInput = !!state.showCustomSpaceInput;
 
     const section = createElement('section', 'idsq-intro idsq-whole-home');
     section.dataset.noScroll = 'true';
@@ -1812,7 +1812,7 @@
           state.showOtherSpaces = !showOtherSpaces;
           if (!state.showOtherSpaces) {
             state.showCustomSpaceInput = false;
-            state.otherSpacesVisibleCount = 20;
+            state.otherSpacesVisibleCount = 18;
           }
           saveState(state);
           renderWholeHomeSpaceSelection(config, mount, state, handlers, saveState);
@@ -1848,6 +1848,34 @@
 
     section.appendChild(coreGrid);
 
+    if (state.spacesRequested && state.spacesRequested.length > 0) {
+      const summaryContainer = createElement('div', 'idsq-selected-spaces-summary');
+      const summaryTitle = createElement('h3', 'idsq-summary-title');
+      summaryTitle.textContent = `Selected spaces (${state.spacesRequested.length})`;
+      summaryContainer.appendChild(summaryTitle);
+
+      const selectedList = createElement('div', 'idsq-selected-spaces-list idsq-selected-spaces-horizontal');
+      state.spacesRequested.forEach((space) => {
+        const chip = createElement('span', 'idsq-space-chip');
+        const label = createElement('span', 'idsq-chip-label');
+        label.textContent = space.name;
+        chip.appendChild(label);
+        const removeBtn = createElement('button', 'idsq-chip-remove', { type: 'button' });
+        removeBtn.textContent = 'x';
+        removeBtn.setAttribute('aria-label', `Remove ${space.name}`);
+        removeBtn.addEventListener('click', (event) => {
+          event.stopPropagation();
+          removeSpaceFromSelection(state, space.id);
+          saveState(state);
+          renderWholeHomeSpaceSelection(config, mount, state, handlers, saveState);
+        });
+        chip.appendChild(removeBtn);
+        selectedList.appendChild(chip);
+      });
+      summaryContainer.appendChild(selectedList);
+      section.appendChild(summaryContainer);
+    }
+
     if (showOtherSpaces) {
       const otherSection = createElement('div', 'idsq-other-spaces-section');
 
@@ -1871,74 +1899,21 @@
 
       const otherGrid = createElement('div', 'idsq-option-grid idsq-other-spaces-grid');
 
+      const customToggle = createElement('button', 'idsq-option-card idsq-other-space-card idsq-custom-space-toggle', {
+        type: 'button',
+      });
       if (showCustomInput) {
-        const customTile = createElement('div', 'idsq-option-card idsq-other-space-card idsq-custom-space-card');
-        const customPrompt = createElement('span', 'idsq-custom-space-label');
-        customPrompt.textContent = 'Name your custom space';
-        const customInput = createElement('input', 'idsq-input idsq-custom-space-input', {
-          type: 'text',
-          placeholder: 'e.g. Music Room',
-        });
-        const controlRow = createElement('div', 'idsq-custom-space-inline');
-        const addButton = createElement(
-          'button',
-          'idsq-button idsq-button-secondary idsq-add-custom-submit',
-          { type: 'button' }
-        );
-        addButton.textContent = 'Add';
-        const closeButton = createElement('button', 'idsq-custom-space-cancel', { type: 'button' });
-        closeButton.textContent = 'Done';
-
-        const addCustomSpace = () => {
-          const customName = customInput.value.trim();
-          if (!customName) {
-            return;
-          }
-          const customId = `custom-${normalizeSpaceId(customName)}`;
-          if (!state.spacesRequested.some((space) => normalizeSpaceId(space.id) === customId)) {
-            addSpaceToSelection(state, customId, customName);
-            state.showCustomSpaceInput = true;
-            saveState(state);
-            renderWholeHomeSpaceSelection(config, mount, state, handlers, saveState);
-          } else {
-            customInput.value = '';
-          }
-        };
-
-        addButton.addEventListener('click', addCustomSpace);
-        customInput.addEventListener('keydown', (event) => {
-          if (event.key === 'Enter') {
-            event.preventDefault();
-            addCustomSpace();
-          }
-        });
-        closeButton.addEventListener('click', () => {
-          state.showCustomSpaceInput = false;
-          saveState(state);
-          renderWholeHomeSpaceSelection(config, mount, state, handlers, saveState);
-        });
-
-        controlRow.appendChild(addButton);
-        controlRow.appendChild(closeButton);
-        customTile.appendChild(customPrompt);
-        customTile.appendChild(customInput);
-        customTile.appendChild(controlRow);
-        otherGrid.appendChild(customTile);
-        setTimeout(() => customInput.focus(), 0);
-      } else {
-        const customToggle = createElement('button', 'idsq-option-card idsq-other-space-card idsq-custom-space-toggle', {
-          type: 'button',
-        });
-        const label = createElement('span', 'idsq-other-space-name');
-        label.textContent = '+ Add Custom Space';
-        customToggle.appendChild(label);
-        customToggle.addEventListener('click', () => {
-          state.showCustomSpaceInput = true;
-          saveState(state);
-          renderWholeHomeSpaceSelection(config, mount, state, handlers, saveState);
-        });
-        otherGrid.appendChild(customToggle);
+        customToggle.classList.add('idsq-selected');
       }
+      const toggleLabel = createElement('span', 'idsq-other-space-name');
+      toggleLabel.textContent = '+ Add Custom Space';
+      customToggle.appendChild(toggleLabel);
+      customToggle.addEventListener('click', () => {
+        state.showCustomSpaceInput = !state.showCustomSpaceInput;
+        saveState(state);
+        renderWholeHomeSpaceSelection(config, mount, state, handlers, saveState);
+      });
+      otherGrid.appendChild(customToggle);
 
       filteredOtherSpaces.slice(0, state.otherSpacesVisibleCount).forEach((spaceName) => {
         const spaceId = normalizeSpaceId(spaceName);
@@ -1972,7 +1947,7 @@
         loadMoreButton.textContent = `Load more spaces (${remaining} remaining)`;
         loadMoreButton.addEventListener('click', () => {
           state.otherSpacesVisibleCount = Math.min(
-            state.otherSpacesVisibleCount + 20,
+            state.otherSpacesVisibleCount + 18,
             filteredOtherSpaces.length
           );
           saveState(state);
@@ -1982,42 +1957,70 @@
         otherSection.appendChild(loadMoreContainer);
       }
 
-      if (customSpaces.length > 0) {
-        const customList = createElement('div', 'idsq-selected-spaces-list idsq-custom-spaces-list');
-        const customHelp = createElement('p', 'idsq-help-text');
-        customHelp.textContent = 'Custom spaces appear here and in your selected list.';
-        otherSection.appendChild(customHelp);
-        customSpaces.forEach((space) => {
-          const chip = createElement('span', 'idsq-space-chip');
-          const label = createElement('span', 'idsq-chip-label');
-          label.textContent = space.name;
-          chip.appendChild(label);
-          const removeBtn = createElement('button', 'idsq-chip-remove', { type: 'button' });
-          removeBtn.textContent = 'x';
-          removeBtn.setAttribute('aria-label', `Remove ${space.name}`);
-          removeBtn.addEventListener('click', (event) => {
-            event.stopPropagation();
-            removeSpaceFromSelection(state, space.id);
-            saveState(state);
-            renderWholeHomeSpaceSelection(config, mount, state, handlers, saveState);
-          });
-          chip.appendChild(removeBtn);
-          customList.appendChild(chip);
-        });
-        otherSection.appendChild(customList);
-      }
-
       section.appendChild(otherSection);
     }
 
-    if (state.spacesRequested && state.spacesRequested.length > 0) {
-      const summaryContainer = createElement('div', 'idsq-selected-spaces-summary');
-      const summaryTitle = createElement('h3', 'idsq-summary-title');
-      summaryTitle.textContent = `Selected spaces (${state.spacesRequested.length})`;
-      summaryContainer.appendChild(summaryTitle);
+    const customSection = createElement('div', 'idsq-custom-space-section');
 
-      const selectedList = createElement('div', 'idsq-selected-spaces-list idsq-selected-spaces-horizontal');
-      state.spacesRequested.forEach((space) => {
+    if (showCustomInput) {
+      const customTile = createElement('div', 'idsq-option-card idsq-other-space-card idsq-custom-space-card');
+      const customPrompt = createElement('span', 'idsq-custom-space-label');
+      customPrompt.textContent = 'Name your custom space';
+      const customInput = createElement('input', 'idsq-input idsq-custom-space-input', {
+        type: 'text',
+        placeholder: 'e.g. Music Room',
+        maxlength: '40',
+      });
+      const controlRow = createElement('div', 'idsq-custom-space-inline');
+      const addButton = createElement('button', 'idsq-button idsq-button-primary idsq-add-custom-submit', { type: 'button' });
+      addButton.textContent = 'Add Space';
+      const closeButton = createElement('button', 'idsq-button idsq-button-secondary idsq-add-custom-cancel', { type: 'button' });
+      closeButton.textContent = 'Done';
+
+      const addCustomSpace = () => {
+        const customName = customInput.value.trim();
+        if (!customName) {
+          return;
+        }
+        const customId = `custom-${normalizeSpaceId(customName)}`;
+        if (!state.spacesRequested.some((space) => normalizeSpaceId(space.id) === customId)) {
+          addSpaceToSelection(state, customId, customName);
+          state.showCustomSpaceInput = false;
+          saveState(state);
+          renderWholeHomeSpaceSelection(config, mount, state, handlers, saveState);
+        } else {
+          customInput.value = '';
+        }
+      };
+
+      addButton.addEventListener('click', addCustomSpace);
+      customInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          addCustomSpace();
+        }
+      });
+      closeButton.addEventListener('click', () => {
+        state.showCustomSpaceInput = false;
+        saveState(state);
+        renderWholeHomeSpaceSelection(config, mount, state, handlers, saveState);
+      });
+
+      controlRow.appendChild(addButton);
+      controlRow.appendChild(closeButton);
+      customTile.appendChild(customPrompt);
+      customTile.appendChild(customInput);
+      customTile.appendChild(controlRow);
+      customSection.appendChild(customTile);
+      setTimeout(() => customInput.focus(), 0);
+    }
+
+    if (customSpaces.length > 0) {
+      const customHelp = createElement('p', 'idsq-help-text');
+      customHelp.textContent = 'Custom spaces appear here and in your selected list.';
+      customSection.appendChild(customHelp);
+      const customList = createElement('div', 'idsq-selected-spaces-list idsq-custom-spaces-list');
+      customSpaces.forEach((space) => {
         const chip = createElement('span', 'idsq-space-chip');
         const label = createElement('span', 'idsq-chip-label');
         label.textContent = space.name;
@@ -2032,10 +2035,13 @@
           renderWholeHomeSpaceSelection(config, mount, state, handlers, saveState);
         });
         chip.appendChild(removeBtn);
-        selectedList.appendChild(chip);
+        customList.appendChild(chip);
       });
-      summaryContainer.appendChild(selectedList);
-      section.appendChild(summaryContainer);
+      customSection.appendChild(customList);
+    }
+
+    if (customSection.childElementCount > 0) {
+      section.appendChild(customSection);
     }
 
     if (state.spacesRequested && state.spacesRequested.length > 0) {
@@ -2071,15 +2077,18 @@
     claraWrapper.appendChild(claraInfo);
     
     const title = createElement('h2', 'idsq-title');
-    // Choose prompt based on selected space to drive vocabulary, while keeping UI copy consistent
+    // Choose prompt based on selected space, fallback to general copy
     const waSpaceKey = state && state.selectedSpace ? state.selectedSpace : 'general';
     const waConfig = (config.wordAssociationBySpace && config.wordAssociationBySpace[waSpaceKey])
       ? config.wordAssociationBySpace[waSpaceKey]
       : (config.wordAssociationBySpace?.general || { prompt: config.copy.wordAssociationTitle, words: [] });
-    title.textContent = 'Which space do you prefer?';
+    title.textContent = waConfig.prompt || config.copy.wordAssociationTitle;
     const description = createElement('p', 'idsq-description');
-    const descriptionCopy = 'Trust your intuition\u2014Which space would you prefer to live in?';
-    description.textContent = descriptionCopy;
+    if (state.participantName) {
+      description.textContent = `Trust your intuition, ${state.participantName}\u2014choose the word that speaks to you.`;
+    } else {
+      description.textContent = config.copy.wordAssociationDescription;
+    }
     
     section.appendChild(claraWrapper);
 
@@ -3167,7 +3176,8 @@
       .idsq-other-spaces-grid {
         grid-template-columns: repeat(6, minmax(0, 1fr));
         gap: 0.75rem;
-        justify-items: stretch;
+        justify-items: start;
+        justify-content: flex-start;
       }
       @media (max-width: 1280px) {
         .idsq-other-spaces-grid {
@@ -3269,7 +3279,7 @@
         outline: none;
       }
       .idsq-other-space-name {
-        font-size: 0.9rem;
+        font-size: 0.95rem;
         font-weight: 600;
         text-align: center;
         color: rgba(44,44,44,0.8);
@@ -3362,6 +3372,20 @@
         justify-content: flex-end;
         width: 100%;
         margin-top: 2.5rem;
+      }
+      .idsq-menu-container {
+        width: 100%;
+        max-width: 1200px;
+        margin: 2rem auto 0;
+        padding: 0 2rem;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+      }
+      @media (max-width: 768px) {
+        .idsq-menu-container {
+          padding: 0 1rem;
+        }
       }
       .idsq-menu-anchor {
         display: flex;
@@ -3557,7 +3581,7 @@
         -o-user-drag: none;
       }
       .idsq-form {
-        width: min(420px, 100%);
+        width: min(560px, 100%);
         display: flex;
         flex-direction: column;
         gap: 1rem;
@@ -3812,7 +3836,13 @@
         justify-content: flex-end;
         align-items: center;
         margin-top: 1.5rem;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
+      }
+      @media (max-width: 600px) {
+        .idsq-name-buttons {
+          justify-content: center;
+          flex-wrap: wrap;
+        }
       }
       .idsq-input-error {
         color: #ef4444;
