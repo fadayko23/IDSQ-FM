@@ -1920,22 +1920,6 @@
 
       const otherGrid = createElement('div', 'idsq-option-grid idsq-other-spaces-grid');
 
-      const customToggle = createElement('button', 'idsq-option-card idsq-other-space-card idsq-custom-space-toggle', {
-        type: 'button',
-      });
-      if (showCustomInput) {
-        customToggle.classList.add('idsq-selected');
-      }
-      const toggleLabel = createElement('span', 'idsq-other-space-name');
-      toggleLabel.textContent = '+ Add Custom Space';
-      customToggle.appendChild(toggleLabel);
-      customToggle.addEventListener('click', () => {
-        state.showCustomSpaceInput = !state.showCustomSpaceInput;
-        saveState(state);
-        renderWholeHomeSpaceSelection(config, mount, state, handlers, saveState);
-      });
-      otherGrid.appendChild(customToggle);
-
       filteredOtherSpaces.slice(0, state.otherSpacesVisibleCount).forEach((spaceName) => {
         const spaceId = normalizeSpaceId(spaceName);
         const card = createElement('button', 'idsq-option-card idsq-other-space-card', { type: 'button' });
@@ -1982,6 +1966,32 @@
     }
 
     const customSection = createElement('div', 'idsq-custom-space-section');
+
+  const customHeader = createElement('h3', 'idsq-rooms-list-title idsq-custom-space-title');
+  customHeader.textContent = 'Need a room that’s not listed?';
+  customSection.appendChild(customHeader);
+
+  const customDescription = createElement('p', 'idsq-help-text idsq-custom-space-help');
+  customDescription.textContent = 'Add a custom space label so we know exactly which area matters most to you.';
+  customSection.appendChild(customDescription);
+
+    const customToggleRow = createElement('div', 'idsq-custom-space-toggle-row');
+    const customToggle = createElement('button', 'idsq-option-card idsq-other-space-card idsq-custom-space-toggle', {
+      type: 'button',
+    });
+    if (showCustomInput) {
+      customToggle.classList.add('idsq-selected');
+    }
+    const toggleLabel = createElement('span', 'idsq-other-space-name');
+    toggleLabel.textContent = '+ Add Custom Space';
+    customToggle.appendChild(toggleLabel);
+    customToggle.addEventListener('click', () => {
+      state.showCustomSpaceInput = !state.showCustomSpaceInput;
+      saveState(state);
+      renderWholeHomeSpaceSelection(config, mount, state, handlers, saveState);
+    });
+    customToggleRow.appendChild(customToggle);
+    customSection.appendChild(customToggleRow);
 
     if (showCustomInput) {
       const customTile = createElement('div', 'idsq-option-card idsq-other-space-card idsq-custom-space-card');
@@ -2070,7 +2080,7 @@
 
       if (handlers && typeof handlers.onGoBack === 'function') {
         const previousButton = createElement('button', 'idsq-button idsq-button-secondary', { type: 'button' });
-        previousButton.textContent = '← Previous';
+      previousButton.textContent = 'Previous';
         previousButton.addEventListener('click', handlers.onGoBack);
         buttonRow.appendChild(previousButton);
       }
@@ -2140,7 +2150,7 @@
     const navigation = createElement('div', 'idsq-step-navigation');
     if (handlers && typeof handlers.onGoBack === 'function') {
       const previousButton = createElement('button', 'idsq-button idsq-button-secondary');
-      previousButton.textContent = '← Previous';
+    previousButton.textContent = 'Previous';
       previousButton.addEventListener('click', handlers.onGoBack);
       navigation.appendChild(previousButton);
     }
@@ -2229,7 +2239,7 @@
     // Back button (only show if not on first step)
     if (state.currentStep > 0) {
       const backButton = createElement('button', 'idsq-button idsq-button-secondary');
-      backButton.textContent = '← Previous';
+      backButton.textContent = 'Previous';
       backButton.addEventListener('click', handlers.onGoBack);
       navigation.appendChild(backButton);
     }
@@ -2241,7 +2251,7 @@
     // Show Next button if selection made AND (not last step OR is last step with selection)
     if (hasSelection && (state.currentStep < steps.length - 1 || isLastStep)) {
       const nextButton = createElement('button', 'idsq-button idsq-button-primary');
-      nextButton.textContent = 'Next →';
+      nextButton.textContent = 'Next';
       if (isLastStep) {
         // On last step, skip lead capture and go directly to final selection
         // Use a handler method to ensure saveState is accessible
@@ -2289,15 +2299,18 @@
     const messages = getMilestoneMessage(space, roundNumber);
     tip.innerHTML = messages;
     
+    const actions = createElement('div', 'idsq-button-container idsq-milestone-actions');
+
     const continueButton = createElement('button', 'idsq-button idsq-button-primary');
-    continueButton.textContent = 'Continue →';
+    continueButton.textContent = 'Continue';
     continueButton.addEventListener('click', () => {
       onContinue();
     });
+    actions.appendChild(continueButton);
     
     section.appendChild(title);
     section.appendChild(tip);
-    section.appendChild(continueButton);
+    section.appendChild(actions);
     
     showSection(mount, section, handlers);
   }
@@ -2544,9 +2557,11 @@
       checkEmailAndUpdateCheckbox();
     }
 
+    const buttonRow = createElement('div', 'idsq-button-container idsq-lead-actions');
     const submit = createElement('button', 'idsq-button idsq-button-primary', { type: 'submit' });
     submit.textContent = config.copy.submitButton;
-    form.appendChild(submit);
+    buttonRow.appendChild(submit);
+    form.appendChild(buttonRow);
 
     form.addEventListener('submit', (event) => {
       event.preventDefault();
@@ -2655,7 +2670,7 @@
 
     // Previous button (right side) - goes back to round 4
     const previousButton = createElement('button', 'idsq-button idsq-button-secondary');
-    previousButton.textContent = '← Previous';
+    previousButton.textContent = 'Previous';
     previousButton.addEventListener('click', () => {
       if (handlers.onGoBackToLastStep) {
         handlers.onGoBackToLastStep();
@@ -2794,7 +2809,7 @@
     scheduleCTA.appendChild(ctaTitle);
 
     // Button container for side-by-side layout
-    const buttonContainer = createElement('div', 'idsq-success-buttons');
+    const buttonContainer = createElement('div', 'idsq-button-container idsq-success-buttons');
     const scheduleButton = createElement('a', 'idsq-button idsq-button-primary', {
       href: 'https://www.jlcoates.com/interior-design/contact',
       target: '_blank',
@@ -2806,13 +2821,8 @@
     selectMaterialsButton.textContent = 'Select Materials';
     selectMaterialsButton.addEventListener('click', () => handlers.onSelectMaterials());
     
-    const restart = createElement('button', 'idsq-button idsq-button-secondary');
-    restart.textContent = config.copy.retryButton;
-    restart.addEventListener('click', handlers.onRestart);
-    
     buttonContainer.appendChild(scheduleButton);
     buttonContainer.appendChild(selectMaterialsButton);
-    buttonContainer.appendChild(restart);
 
     section.appendChild(title);
     section.appendChild(card);
@@ -3322,6 +3332,22 @@
         display: flex;
         flex-direction: column;
         gap: 1.25rem;
+        align-items: center;
+      }
+      .idsq-custom-space-toggle-row {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+      }
+      .idsq-custom-space-title {
+        width: 100%;
+        text-align: left;
+        margin-bottom: 0.35rem;
+      }
+      .idsq-custom-space-help {
+        width: 100%;
+        text-align: left;
+        margin-top: 0;
       }
       .idsq-custom-space-control {
         display: flex;
@@ -3329,17 +3355,20 @@
         gap: 0.75rem;
       }
       .idsq-custom-space-input {
-        flex: 1 1 280px;
-        min-width: 220px;
-        padding: 0.85rem 1rem;
-        border-radius: 999px;
-        border: 2px solid rgba(54,54,54,0.15);
+        flex: 1 1 100%;
+        min-width: 0;
+        padding: 0.75rem 1rem;
+        border-radius: 12px;
+        border: 1px solid #cbd5f5;
+        background-color: #fff;
         font-size: 1rem;
+        font-weight: 500;
+        font-family: var(--idsq-font);
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
       }
       .idsq-custom-space-input:focus {
         border-color: var(--idsq-primary);
-        outline: none;
-        box-shadow: 0 0 0 3px rgba(54,54,54,0.08);
+        box-shadow: 0 0 0 3px rgba(54, 54, 54, 0.2);
       }
       .idsq-selected-spaces-summary {
         width: 100%;
@@ -3422,6 +3451,22 @@
         align-items: center;
         gap: 0.75rem;
         flex-wrap: wrap;
+      }
+      .idsq-milestone-actions {
+        width: 100%;
+        margin-top: 2rem;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 0.75rem;
+      }
+      .idsq-lead-actions {
+        width: 100%;
+        margin-top: 2rem;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 0.75rem;
       }
       .idsq-menu-container {
         width: 100%;
@@ -3872,10 +3917,12 @@
       }
       .idsq-success-buttons {
         display: flex;
-        gap: 1rem;
+        gap: 0.75rem;
         justify-content: center;
         margin-top: 2rem;
         align-items: center;
+        flex-wrap: wrap;
+        width: 100%;
       }
       .idsq-success-buttons .idsq-button {
         text-decoration: none;
@@ -4409,7 +4456,9 @@
     const hasSelection = state.projectContext.projectType;
     if (hasSelection) {
       const continueButton = createElement('button', 'idsq-button idsq-button-primary');
-      continueButton.textContent = 'Continue →';
+    continueButton.textContent = 'Continue';
+    continueButton.textContent = 'Continue';
+    continueButton.textContent = 'Continue';
       continueButton.addEventListener('click', () => {
         handlers.onContinueFromProjectType();
       });
@@ -4508,7 +4557,7 @@
     // Back button if not first question
     if (questionIndex > 0) {
       const backButton = createElement('button', 'idsq-button idsq-button-secondary');
-      backButton.textContent = '← Previous';
+      backButton.textContent = 'Previous';
       backButton.addEventListener('click', () => {
         handlers.onGoBackFromExpertQuestion();
       });
@@ -4654,7 +4703,7 @@
     // Back button (only show if not on first category and first round)
     if (state.currentCategoryIndex > 0 || categoryState.round > 1) {
       const backButton = createElement('button', 'idsq-button idsq-button-secondary');
-      backButton.textContent = '← Previous';
+      backButton.textContent = 'Previous';
       backButton.addEventListener('click', () => {
         handlers.onGoBackMaterial();
       });
@@ -4708,7 +4757,7 @@
     const navigation = createElement('div', 'idsq-step-navigation');
     
     const reselectButton = createElement('button', 'idsq-button idsq-button-secondary');
-    reselectButton.textContent = '← Reselect';
+    reselectButton.textContent = 'Reselect';
     reselectButton.addEventListener('click', () => {
       handlers.onReselectMaterial();
     });
@@ -4752,7 +4801,7 @@
     ctaTitle.textContent = 'Ready to get started?';
     cta.appendChild(ctaTitle);
     
-    const buttonContainer = createElement('div', 'idsq-success-buttons');
+    const buttonContainer = createElement('div', 'idsq-button-container idsq-success-buttons');
     const scheduleButton = createElement('a', 'idsq-button idsq-button-primary', {
       href: 'https://www.jlcoates.com/interior-design/contact',
       target: '_blank',
