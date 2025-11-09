@@ -9,6 +9,9 @@ Expanding from single-space (bathroom) to whole-home materials selection system 
 - ✅ Expert questions for bathroom (Aria, Clara, Mason)
 - ✅ Materials selection for bathroom (11 categories, 3-round process)
 - ✅ Basic conditional branching based on project type
+- ✅ Whole-home space selection UX with core spaces, additional chips, custom space entry, and persisted selections
+- ✅ Global action menus positioned beside primary CTAs (quiz, tips, lead capture, success)
+- ✅ Restart behavior clarified (Start Over → Intro reset, Restart Section → Meet the Team with quiz results retained)
 
 ## Target State
 - ✅ Expert intro screen (unchanged)
@@ -60,7 +63,7 @@ Expanding from single-space (bathroom) to whole-home materials selection system 
 
 ---
 
-### Phase 3: Expanded Expert Questions Per Space
+### Phase 3: Expanded Expert Questions Per Space (In Progress)
 **Goal:** Add expert questions for all space types (Kitchen, Living Room, Primary Bedroom, Primary Bathroom, General Interior, General Exterior)
 
 **Tasks:**
@@ -344,14 +347,14 @@ Each question needs:
 
 ---
 
-## Next Steps
+## Immediate Next Steps (Nov 2025)
 
-1. Start with Phase 1: Update state structure
-2. Implement Phase 2: Space selection screen
-3. Expand expert questions for Kitchen (Phase 3)
-4. Add category qualifiers for Kitchen Backsplash as example (Phase 4)
-5. Test full Kitchen flow end-to-end
-6. Repeat for other spaces
+1. Finalize Kitchen & Living Room expert pathways for both **New Construction** and **Remodel** scenarios (Phase 3).
+2. Define/implement qualifying questions per core space (Kitchen, Living Room, Bedroom, Bathroom) including category flags (Phase 4).
+3. Stand up kitchen material categories in config to validate end-to-end flow (Phase 6).
+4. Extract materials-selection modules into a dedicated `materials-flow.js` (or similar) referenced by `idsq-quiz.js` to improve maintainability.
+5. Update Webflow embed instructions once module split is complete.
+6. Document per-space question outlines in `QUESTIONS_AND_PATHWAYS.md` before implementation to keep UX aligned.
 
 ---
 

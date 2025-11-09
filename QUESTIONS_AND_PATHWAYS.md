@@ -440,6 +440,16 @@ When designing the Airtable base, consider these data points collected:
 
 ---
 
+## UPCOMING ADDITIONS (PLANNING)
+
+- Draft question trees for Kitchen, Living Room, Bedroom, and Whole-Home core spaces covering both **New Construction** and **Remodel** pathways.
+- Define per-category qualifier sets for Kitchen (Flooring, Backsplash, Countertops) and map resulting flags.
+- Capture duplication/quantity logic requirements for repeated spaces (e.g., Bedrooms) ahead of implementation.
+- Outline data contract for future Airtable-powered material catalogs (fields, tags, filtering rules).
+- Document restart behaviors: **Start Over** returns to Intro (state cleared), **Restart This Section** returns to Expert Team while retaining quiz outcomes.
+
+---
+
 ## POTENTIAL PATHWAY ENHANCEMENTS
 
 Future additions could include:

@@ -1808,9 +1808,9 @@
     section.appendChild(description);
 
     const coreSpaces = [
-      { id: 'kitchen', name: 'Kitchen', icon: '🍳', description: 'Culinary spaces and dining areas' },
       { id: 'living-room', name: 'Living Room', icon: '🛋️', description: 'Social spaces for gathering and relaxation' },
       { id: 'bedroom', name: 'Bedroom', icon: '🛏️', description: 'Personal retreat and rest spaces' },
+      { id: 'kitchen', name: 'Kitchen', icon: '🍳', description: 'Culinary spaces and dining areas' },
       { id: 'bathroom', name: 'Bathroom', icon: '🛁', description: 'Wellness and rejuvenation spaces' },
       { id: 'office', name: 'Office', icon: '💼', description: 'Productive and inspiring work spaces' },
       { id: 'other', name: 'Other', icon: '➕', description: 'Browse additional spaces or add custom rooms' },
@@ -4886,6 +4886,18 @@
       return 'proj_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
     };
 
+    const CATEGORY_FLAGS_TEMPLATE = {
+      backsplash_use_slab: false,
+      backsplash_slab_source: null, // "countertop" | "wall-slab-only"
+      requires_heavy_slab_handling: false,
+      requires_ducted_hood: false,
+      panel_ready_appliances: false,
+      apron_sink_requires_base_mod: false,
+      restrict_wall_mount_faucet: false,
+      restrict_freestanding_tub: false,
+      heated_floor_desired: false
+    };
+
     const state = savedState || {
       currentFlow: 'intro', // intro -> name -> space-selection -> word-association -> quiz -> lead -> final
       currentStep: -1,
@@ -4914,17 +4926,7 @@
       },
       expertAnswers: {}, // Structured by space: { Kitchen: { aria: {}, clara: {}, mason: {} }, ... }
       categorySelectionBySpace: {}, // { Kitchen: { flooring: {}, backsplash: {}, ... }, ... }
-      categoryFlags: {
-        backsplash_use_slab: false,
-        backsplash_slab_source: null, // "countertop" | "wall-slab-only"
-        requires_heavy_slab_handling: false,
-        requires_ducted_hood: false,
-        panel_ready_appliances: false,
-        apron_sink_requires_base_mod: false,
-        restrict_wall_mount_faucet: false,
-        restrict_freestanding_tub: false,
-        heated_floor_desired: false
-      },
+      categoryFlags: { ...CATEGORY_FLAGS_TEMPLATE },
       deferredDecisions: [], // [{ category: "Backsplash", decision: "Use slab", resolvesIn: "Countertops" }]
       currentSpace: null, // Which space user is currently working on
       currentCategory: null, // Which category in current space
@@ -4952,17 +4954,7 @@
       };
       if (!savedState.expertAnswers) savedState.expertAnswers = {};
       if (!savedState.categorySelectionBySpace) savedState.categorySelectionBySpace = {};
-      if (!savedState.categoryFlags) savedState.categoryFlags = {
-        backsplash_use_slab: false,
-        backsplash_slab_source: null,
-        requires_heavy_slab_handling: false,
-        requires_ducted_hood: false,
-        panel_ready_appliances: false,
-        apron_sink_requires_base_mod: false,
-        restrict_wall_mount_faucet: false,
-        restrict_freestanding_tub: false,
-        heated_floor_desired: false
-      };
+      if (!savedState.categoryFlags) savedState.categoryFlags = { ...CATEGORY_FLAGS_TEMPLATE };
       if (!savedState.deferredDecisions) savedState.deferredDecisions = [];
       if (savedState.currentSpace === undefined) savedState.currentSpace = null;
       if (savedState.currentCategory === undefined) savedState.currentCategory = null;
@@ -5015,6 +5007,82 @@
         }) + (basePrompt.includes('?') ? '' : ', ' + state.participantName + '?');
       }
       return basePrompt;
+    }
+
+    function resetStateToIntro(preserveInvitation = true) {
+      const preservedRid = preserveInvitation ? state.rid : null;
+      const preservedCp = preserveInvitation ? state.cp : null;
+      const preservedInvited = preserveInvitation ? state.invited : false;
+
+      Object.assign(state, {
+        currentFlow: 'intro',
+        currentStep: -1,
+        selectedSpace: null,
+        participantName: urlParticipantName || null,
+        wordChoice: null,
+        choices: [],
+        topStyles: [],
+        finalStyle: null,
+        leadData: {},
+        newsLetterSignup: false,
+        projectType: null,
+        spacesRequested: [],
+        additionalSpaces: [],
+        duplicateRules: state.duplicateRules || {
+          allowDuplicateSpace: true,
+          fieldsToClone: ["style", "finishFamilies", "fixtures", "qualifiers"],
+          quantityForIdentical: true,
+          allowPerInstanceOverrides: true
+        },
+        expertAnswers: {},
+        categorySelectionBySpace: {},
+        categoryFlags: { ...CATEGORY_FLAGS_TEMPLATE },
+        deferredDecisions: [],
+        currentSpace: null,
+        currentCategory: null,
+        currentCategoryIndex: 0,
+        projectContext: {},
+        currentExpert: null,
+        currentExpertQuestion: 0,
+        materialsSelections: {},
+        categoryQualifiers: {},
+        lastSaved: null,
+        spaceOrder: [],
+        completedSpaces: []
+      });
+
+      state.projectId = generateProjectId();
+      state.userId = null;
+      if (preserveInvitation) {
+        state.rid = preservedRid || urlRid || null;
+        state.cp = preservedCp || urlCp || null;
+        state.invited = !!(state.rid || state.cp || preservedInvited);
+      } else {
+        state.rid = null;
+        state.cp = null;
+        state.invited = false;
+      }
+    }
+
+    function resetMaterialFlowToExpertIntro() {
+      state.projectType = null;
+      state.projectContext = {};
+      state.currentExpert = 'aria';
+      state.currentExpertQuestion = 0;
+      state.materialsSelections = {};
+      state.categorySelectionBySpace = {};
+      state.categoryQualifiers = {};
+      state.categoryFlags = { ...CATEGORY_FLAGS_TEMPLATE };
+      state.deferredDecisions = [];
+      state.currentSpace = null;
+      state.currentCategory = null;
+      state.currentCategoryIndex = 0;
+      state.spaceOrder = [];
+      state.completedSpaces = [];
+      state.lastSaved = null;
+      state.currentFlow = 'expert-intro';
+      saveState(state);
+      renderExpertIntro(config, mount, state, handlers);
     }
 
     const handlers = {
@@ -5229,40 +5297,10 @@
         }
       },
       onRestart() {
-        // Check if we're in materials flow and have quiz results to preserve
-        if ((state.currentFlow === 'expert-intro' || state.currentFlow === 'project-type' || 
-            state.currentFlow === 'project-context' || state.currentFlow === 'materials-selection' ||
-            state.currentFlow === 'material-review') && state.selectedSpace && state.finalStyle) {
-          // Preserve selectedSpace and finalStyle, but clear materials data
-          const savedSpace = state.selectedSpace;
-          const savedStyle = state.finalStyle;
-          const savedParticipantName = state.participantName;
-          clearState();
-          state.selectedSpace = savedSpace;
-          state.finalStyle = savedStyle;
-          state.participantName = savedParticipantName;
-          state.currentFlow = 'expert-intro';
-          state.projectContext = {};
-          state.currentExpert = 'aria';
-          state.currentExpertQuestion = 0;
-          state.materialsSelections = {};
-          saveState(state);
-          renderExpertIntro(config, mount, state, handlers);
-        } else {
-          // Full restart from beginning
-          clearState();
-          state.currentFlow = 'intro';
-          state.currentStep = -1;
-          state.selectedSpace = null;
-          state.participantName = null;
-          state.wordChoice = null;
-          state.choices = [];
-          state.topStyles = [];
-          state.finalStyle = null;
-          state.leadData = {};
-          state.newsLetterSignup = false;
-          renderIntro(config, mount, handlers);
-        }
+        clearState();
+        resetStateToIntro(true);
+        saveState(state);
+        renderIntro(config, mount, handlers);
       },
       onRestartSection() {
         const flow = state.currentFlow;
@@ -5290,69 +5328,7 @@
           return;
         }
 
-        if (flow === 'expert-intro') {
-          state.projectContext = {};
-          state.currentExpert = 'aria';
-          state.currentExpertQuestion = 0;
-          saveState(state);
-          renderExpertIntro(config, mount, state, handlers);
-          return;
-        }
-
-        if (flow === 'project-type') {
-          if (state.projectContext) {
-            state.projectContext.projectType = null;
-          }
-          saveState(state);
-          renderProjectType(config, mount, state, handlers);
-          return;
-        }
-
-        if (flow === 'project-context') {
-          if (state.projectContext && state.currentExpert) {
-            state.projectContext[state.currentExpert] = {};
-          }
-          state.currentExpertQuestion = 0;
-          state.currentFlow = 'project-context';
-          saveState(state);
-          renderExpertQuestion(config, mount, state, handlers);
-          return;
-        }
-
-        if (flow === 'materials-selection') {
-          handlers.onRestartMaterials();
-          return;
-        }
-
-        if (flow === 'material-review') {
-          const categories = config.materialsBySpace[state.selectedSpace] || [];
-          const currentCategory = categories[state.currentCategoryIndex] || null;
-          if (currentCategory) {
-            state.materialsSelections[currentCategory.id] = {
-              round: 1,
-              winners: [],
-            };
-          }
-          state.currentFlow = 'materials-selection';
-          saveState(state);
-          renderMaterialsSelection(config, mount, state, handlers);
-          return;
-        }
-
-        if (flow === 'lead-capture') {
-          handlers._state = state;
-          saveState(state);
-          renderLeadCapture(config, mount, handlers);
-          return;
-        }
-
-        if (flow === 'final-selection') {
-          saveState(state);
-          renderFinalSelection(config, mount, state, handlers);
-          return;
-        }
-
-        handlers.onRestart();
+        resetMaterialFlowToExpertIntro();
       },
       onSelectMaterials() {
         // Start expert-guided flow with intro

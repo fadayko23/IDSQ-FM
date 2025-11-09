@@ -237,17 +237,22 @@ window.IDSQ.buildQuiz({
 ✅ Expert team introduction
 ✅ Project type selection (New Home vs Remodel)
 ✅ Conditional branching logic for expert questions
+✅ Whole-home space selection with customizable core + additional spaces
 ✅ Materials selection interface with 3-round process
 ✅ Progress tracking and navigation
 ✅ Responsive design
+✅ Unified action menus beside primary CTAs
+✅ Refined restart behavior (Start Over resets to intro, Restart Section returns to Meet the Team)
 
 ### Pending
 🔄 **Airtable Base Development**: Product/materials/finishes catalogs
 🔄 Replace demo Unsplash images with Airtable product data
 🔄 Dynamic product recommendations based on style + expert answers
 🔄 Submission of materials selections to Make.com
-🔄 Specialized questions for Kitchen space
+🔄 Expanded expert pathways & qualifiers for Kitchen, Living Room, Bedroom, Whole Home core spaces
 🔄 Additional space types beyond Bathroom/Kitchen
+🔄 Modularize materials-selection logic into a dedicated JS module (prepare for CDN split)
+🔄 Save/Resume workflow tied to Webflow memberships (post modular refactor)
 
 ---
 
