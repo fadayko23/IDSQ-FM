@@ -98,7 +98,7 @@
         words: ['Inspired','Grounded','Clear','Driven','Calm','Focused','Energized','Balanced','Creative','Composed','Minimal','Productive','Elevated','Organized','Tranquil','Sun-lit','Cozy','Visionary','Warm','Refreshing','Centered','Expressive','Natural','Mindful']
       },
       general: {
-        prompt: 'If your home had a soul, it would be…',
+        prompt: 'Which word best captures the feeling you want your home to evoke?',
         words: ['Harmonious','Collected','Earthbound','Breezy','Elevated','Organic','Nostalgic','Intentional','Minimal','Glamorous','Relaxed','Mediterranean','Centered','Balanced','Playful','Warm','Sophisticated','Luminous','Textured','Bold','Serene','Refined','Vibrant','Natural']
       }
     },
@@ -890,7 +890,130 @@
     },
   };
 
+  // ============================================================================
+  // JSON Question Configuration Loader
+  // ============================================================================
+  
+  let questionConfigCache = {};
+  
+  /**
+   * Loads a JSON question configuration file
+   * @param {string} filePath - Path to the JSON file (e.g., 'config/questions/Global-Questions.json')
+   * @returns {Promise<Array>} - Parsed JSON question array
+   */
+  async function loadQuestionConfig(filePath) {
+    if (questionConfigCache[filePath]) {
+      return questionConfigCache[filePath];
+    }
+    
+    try {
+      const response = await fetch(filePath);
+      if (!response.ok) {
+        console.warn(`Failed to load ${filePath}: ${response.status} ${response.statusText}`);
+        throw new Error(`Failed to load ${filePath}: ${response.status} ${response.statusText}`);
+      }
+      const data = await response.json();
+      if (!Array.isArray(data) || data.length === 0) {
+        console.warn(`Question config from ${filePath} is empty or invalid`);
+        return [];
+      }
+      questionConfigCache[filePath] = data;
+      console.log(`Successfully loaded ${data.length} questions from ${filePath}`);
+      return data;
+    } catch (error) {
+      console.error(`Error loading question config from ${filePath}:`, error);
+      console.warn(`Will fall back to default renderer`);
+      // Return empty array as fallback to trigger fallback renderer
+      return [];
+    }
+  }
+  
+  /**
+   * Evaluates showIf conditions for JSON questions
+   * @param {Object} showIf - The showIf condition object
+   * @param {Object} context - Current state context (answers, routeMode, selected categories, etc.)
+   * @returns {boolean} - Whether the question should be shown
+   */
+  function evaluateQuestionCondition(showIf, context) {
+    if (!showIf) return true;
+    
+    // Handle 'all' conditions (AND logic - all must be true)
+    if (showIf.all && Array.isArray(showIf.all)) {
+      return showIf.all.every(condition => evaluateSingleCondition(condition, context));
+    }
+    
+    // Handle single condition
+    return evaluateSingleCondition(showIf, context);
+  }
+  
+  /**
+   * Evaluates a single condition
+   * @param {Object} condition - Single condition object
+   * @param {Object} context - Current state context
+   * @returns {boolean}
+   */
+  function evaluateSingleCondition(condition, context) {
+    // Route mode condition: { "routeMode": ["deep"] }
+    if (condition.routeMode && Array.isArray(condition.routeMode)) {
+      const currentRouteMode = context.routeMode || context.projectContext?.routeMode;
+      return condition.routeMode.includes(currentRouteMode);
+    }
+    
+    // Category selection condition: { "selected": "section_gate_gi:flooring" }
+    if (condition.selected) {
+      const [gateId, categoryId] = condition.selected.split(':');
+      const selectedCategories = context.selectedCategories || context.projectContext?.selectedCategories || [];
+      return selectedCategories.includes(categoryId);
+    }
+    
+    // Previous answer condition: { "answerOf": "question_id", "in": ["answer1", "answer2"] }
+    if (condition.answerOf && condition.in) {
+      const questionId = condition.answerOf;
+      // Check both jsonQuestionAnswers and answers for backward compatibility
+      const answers = context.answers || context.jsonQuestionAnswers || context.projectContext?.answers || context.projectContext?.jsonQuestionAnswers || {};
+      const answer = answers[questionId];
+      if (answer === undefined || answer === null) {
+        return false; // Question not answered yet
+      }
+      if (Array.isArray(answer)) {
+        // Multi-select: check if any selected answer is in the condition
+        return answer.some(a => condition.in.includes(a));
+      } else {
+        // Single-select: check if answer is in the condition
+        return condition.in.includes(answer);
+      }
+    }
+    
+    // Project type condition: { "projectType": "new-home" }
+    if (condition.projectType) {
+      const currentProjectType = context.projectType || context.projectContext?.projectType?.id || context.projectContext?.projectType;
+      return currentProjectType === condition.projectType;
+    }
+    
+    // Build type condition: { "buildType": "builder-spec" }
+    if (condition.buildType) {
+      const currentBuildType = context.buildType || context.projectContext?.buildType?.id || context.projectContext?.buildType;
+      return currentBuildType === condition.buildType;
+    }
+    
+    // Default: condition is true if it exists (backward compatibility)
+    return true;
+  }
+  
+  /**
+   * Filters questions based on showIf conditions
+   * @param {Array} questions - Array of question objects
+   * @param {Object} context - Current state context
+   * @returns {Array} - Filtered questions
+   */
+  function filterQuestionsByConditions(questions, context) {
+    if (!Array.isArray(questions)) return [];
+    return questions.filter(q => evaluateQuestionCondition(q.showIf, context));
+  }
+  
+  // ============================================================================
   // Build dynamic 4-round step set covering 12 styles (3 options x 4 rounds)
+  // ============================================================================
   function buildDynamicStepsFromLibrary(library, spaceId = 'general') {
     // Map space IDs to match style library room keys
     const spaceMap = {
@@ -1247,6 +1370,20 @@
       }
     });
 
+    const scheduleButton = createElement('a', 'idsq-menu-item', {
+      href: 'https://www.jlcoates.com/interior-design/contact',
+      target: '_blank',
+      rel: 'noopener noreferrer',
+      role: 'menuitem',
+      style: 'text-decoration: none; display: block;',
+    });
+    scheduleButton.textContent = 'Schedule';
+    scheduleButton.addEventListener('click', () => {
+      closeMenu();
+      // Link will navigate naturally
+    });
+
+    dropdown.appendChild(scheduleButton);
     dropdown.appendChild(startButton);
     dropdown.appendChild(restartSectionButton);
     menuWrapper.appendChild(trigger);
@@ -1317,6 +1454,12 @@
 
   function showSection(mount, section, handlers) {
     const previous = mount.firstElementChild;
+    
+    // Clean up keyboard listeners from previous section
+    if (previous && previous._keyboardCleanup) {
+      previous._keyboardCleanup();
+    }
+    
     if (!previous) {
       mount.innerHTML = '';
       mount.appendChild(section);
@@ -1331,6 +1474,10 @@
     previous.addEventListener(
       'animationend',
       () => {
+        // Clean up keyboard listeners before removing
+        if (previous._keyboardCleanup) {
+          previous._keyboardCleanup();
+        }
         mount.innerHTML = '';
         mount.appendChild(section);
         requestAnimationFrame(() => {
@@ -1374,6 +1521,27 @@
       const cta = createElement('button', 'idsq-button idsq-button-primary', { type: 'button', 'aria-label': 'Start the Interior Design Style Quiz' });
       cta.textContent = config.copy.startButton || 'Start Quiz';
       cta.addEventListener('click', handlers.onStart);
+      
+      // Add keyboard support: spacebar triggers start button
+      const handleKeyDown = (event) => {
+        if (event.key === ' ' || event.key === 'Spacebar') {
+          const activeElement = document.activeElement;
+          const isInputFocused = activeElement && (
+            activeElement.tagName === 'INPUT' ||
+            activeElement.tagName === 'TEXTAREA' ||
+            activeElement.isContentEditable
+          );
+          if (!isInputFocused && mount.contains(section)) {
+            event.preventDefault();
+            cta.click();
+          }
+        }
+      };
+      document.addEventListener('keydown', handleKeyDown);
+      section._keyboardCleanup = () => {
+        document.removeEventListener('keydown', handleKeyDown);
+      };
+      
       ctaWrap.appendChild(cta);
 
       const guidePanel = createElement('div', 'idsq-guide-panel');
@@ -1424,6 +1592,27 @@
     const button = createElement('button', 'idsq-button idsq-button-primary');
     button.textContent = config.copy.startButton;
     button.addEventListener('click', handlers.onStart);
+    
+    // Add keyboard support: spacebar triggers start button
+    const handleKeyDown = (event) => {
+      if (event.key === ' ' || event.key === 'Spacebar') {
+        const activeElement = document.activeElement;
+        const isInputFocused = activeElement && (
+          activeElement.tagName === 'INPUT' ||
+          activeElement.tagName === 'TEXTAREA' ||
+          activeElement.isContentEditable
+        );
+        if (!isInputFocused && mount.contains(intro)) {
+          event.preventDefault();
+          button.click();
+        }
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    intro._keyboardCleanup = () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+    
     intro.appendChild(claraWrapper);
     intro.appendChild(title);
     intro.appendChild(description);
@@ -1621,6 +1810,30 @@
     const skipButton = createElement('button', 'idsq-button idsq-button-secondary', { type: 'button' });
     skipButton.textContent = config.copy.nameSkip;
     
+    // Add keyboard support: spacebar triggers skip button when input is empty
+    const handleKeyDown = (event) => {
+      if (event.key === ' ' || event.key === 'Spacebar') {
+        const activeElement = document.activeElement;
+        // Only trigger if not typing in the input field
+        if (activeElement !== input && mount.contains(section)) {
+          const current = input.value.trim();
+          if (!current) {
+            // If input is empty, spacebar triggers skip
+            event.preventDefault();
+            skipButton.click();
+          } else if (submitButton.style.display !== 'none' && !submitButton.disabled) {
+            // If input has value and submit button is visible, spacebar triggers submit
+            event.preventDefault();
+            submitButton.click();
+          }
+        }
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    section._keyboardCleanup = () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+    
     form.appendChild(input);
     buttonContainer.appendChild(submitButton);
     buttonContainer.appendChild(skipButton);
@@ -1732,6 +1945,26 @@
         handlers.onSelectSpace(state.selectedSpace);
       });
       actions.appendChild(continueButton);
+      
+      // Add keyboard support: spacebar triggers continue button
+      const handleKeyDown = (event) => {
+        if (event.key === ' ' || event.key === 'Spacebar') {
+          const activeElement = document.activeElement;
+          const isInputFocused = activeElement && (
+            activeElement.tagName === 'INPUT' ||
+            activeElement.tagName === 'TEXTAREA' ||
+            activeElement.isContentEditable
+          );
+          if (!isInputFocused && mount.contains(section)) {
+            event.preventDefault();
+            continueButton.click();
+          }
+        }
+      };
+      document.addEventListener('keydown', handleKeyDown);
+      section._keyboardCleanup = () => {
+        document.removeEventListener('keydown', handleKeyDown);
+      };
     }
     section.appendChild(actions);
 
@@ -2094,6 +2327,26 @@
       });
       buttonRow.appendChild(continueButton);
       section.appendChild(buttonRow);
+
+      // Add spacebar support for continue button
+      const handleKeyDown = (event) => {
+        if (event.key === ' ' || event.key === 'Spacebar') {
+          const activeElement = document.activeElement;
+          const isInputFocused = activeElement && (
+            activeElement.tagName === 'INPUT' ||
+            activeElement.tagName === 'TEXTAREA' ||
+            activeElement.isContentEditable
+          );
+          if (!isInputFocused && mount.contains(section)) {
+            event.preventDefault();
+            continueButton.click();
+          }
+        }
+      };
+      document.addEventListener('keydown', handleKeyDown);
+      section._keyboardCleanup = () => {
+        document.removeEventListener('keydown', handleKeyDown);
+      };
     }
 
     showSection(mount, section, handlers);
@@ -2159,6 +2412,29 @@
     section.appendChild(description);
     section.appendChild(wordContainer);
     section.appendChild(navigation);
+
+    // Add spacebar support: when a word is selected, spacebar triggers the selection
+    // Note: Word selection auto-advances, so spacebar is mainly for accessibility
+    const handleKeyDown = (event) => {
+      if (event.key === ' ' || event.key === 'Spacebar') {
+        const activeElement = document.activeElement;
+        const isInputFocused = activeElement && (
+          activeElement.tagName === 'INPUT' ||
+          activeElement.tagName === 'TEXTAREA' ||
+          activeElement.isContentEditable
+        );
+        if (!isInputFocused && mount.contains(section)) {
+          // If a word card is focused, let it handle the click naturally
+          if (activeElement && activeElement.classList.contains('idsq-word-card')) {
+            return; // Let the card handle it
+          }
+        }
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    section._keyboardCleanup = () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
 
     showSection(mount, section, handlers);
   }
@@ -2264,6 +2540,26 @@
         nextButton.addEventListener('click', handlers.onProceed);
       }
       navigation.appendChild(nextButton);
+      
+      // Add spacebar support for continue button when selection is made
+      const handleKeyDown = (event) => {
+        if (event.key === ' ' || event.key === 'Spacebar') {
+          const activeElement = document.activeElement;
+          const isInputFocused = activeElement && (
+            activeElement.tagName === 'INPUT' ||
+            activeElement.tagName === 'TEXTAREA' ||
+            activeElement.isContentEditable
+          );
+          if (!isInputFocused && mount.contains(section)) {
+            event.preventDefault();
+            nextButton.click();
+          }
+        }
+      };
+      document.addEventListener('keydown', handleKeyDown);
+      section._keyboardCleanup = () => {
+        document.removeEventListener('keydown', handleKeyDown);
+      };
     }
 
     section.appendChild(prompt);
@@ -2311,6 +2607,33 @@
     section.appendChild(title);
     section.appendChild(tip);
     section.appendChild(actions);
+    
+    // Add keyboard support: spacebar triggers continue button
+    const handleKeyDown = (event) => {
+      // Only trigger if spacebar is pressed and user is not typing in an input/textarea
+      if (event.key === ' ' || event.key === 'Spacebar') {
+        const activeElement = document.activeElement;
+        const isInputFocused = activeElement && (
+          activeElement.tagName === 'INPUT' ||
+          activeElement.tagName === 'TEXTAREA' ||
+          activeElement.isContentEditable
+        );
+        
+        // Only trigger if not typing in an input field and section is still mounted
+        if (!isInputFocused && mount.contains(section)) {
+          event.preventDefault();
+          continueButton.click();
+        }
+      }
+    };
+    
+    // Add event listener to document (only one listener needed)
+    document.addEventListener('keydown', handleKeyDown);
+    
+    // Store cleanup function on section for later removal
+    section._keyboardCleanup = () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
     
     showSection(mount, section, handlers);
   }
@@ -2560,6 +2883,27 @@
     const buttonRow = createElement('div', 'idsq-button-container idsq-lead-actions');
     const submit = createElement('button', 'idsq-button idsq-button-primary', { type: 'submit' });
     submit.textContent = config.copy.submitButton;
+    
+    // Add keyboard support: spacebar triggers submit button
+    const handleKeyDown = (event) => {
+      if (event.key === ' ' || event.key === 'Spacebar') {
+        const activeElement = document.activeElement;
+        const isInputFocused = activeElement && (
+          activeElement.tagName === 'INPUT' ||
+          activeElement.tagName === 'TEXTAREA' ||
+          activeElement.isContentEditable
+        );
+        if (!isInputFocused && mount.contains(section)) {
+          event.preventDefault();
+          submit.click();
+        }
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    section._keyboardCleanup = () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+    
     buttonRow.appendChild(submit);
     form.appendChild(buttonRow);
 
@@ -2683,6 +3027,30 @@
     section.appendChild(grid);
     section.appendChild(navigation);
 
+    // Add spacebar support for selecting the first style card
+    const handleKeyDown = (event) => {
+      if (event.key === ' ' || event.key === 'Spacebar') {
+        const activeElement = document.activeElement;
+        const isInputFocused = activeElement && (
+          activeElement.tagName === 'INPUT' ||
+          activeElement.tagName === 'TEXTAREA' ||
+          activeElement.isContentEditable
+        );
+        if (!isInputFocused && mount.contains(section) && selectedStyles.length > 0) {
+          event.preventDefault();
+          // Select the first style card
+          const firstCard = grid.querySelector('.idsq-option-card');
+          if (firstCard) {
+            firstCard.click();
+          }
+        }
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    section._keyboardCleanup = () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+
     showSection(mount, section, handlers);
   }
 
@@ -2706,6 +3074,89 @@
     section.appendChild(title);
     section.appendChild(description);
     section.appendChild(retry);
+    showSection(mount, section, handlers);
+  }
+
+  /**
+   * Renders a "coming soon" page for pathways that aren't yet developed
+   * @param {Object} config - Quiz config
+   * @param {HTMLElement} mount - Mount element
+   * @param {Object} state - Current state
+   * @param {Object} handlers - Event handlers
+   * @param {Function} saveStateFn - Function to save state: (state) => void
+   */
+  function renderPathwayComingSoon(config, mount, state, handlers, saveStateFn) {
+    const section = createElement('section', 'idsq-step');
+    section.dataset.hideMenu = 'false';
+    
+    // Get pathway information
+    const routeMode = state.routeMode || state.jsonQuestionAnswers?.route_mode || state.projectContext?.routeMode || 'standard';
+    const projectType = state.projectType || state.jsonQuestionAnswers?.project_type || state.projectContext?.projectType?.id || 'remodel';
+    const buildType = state.buildType || state.jsonQuestionAnswers?.build_type || state.projectContext?.buildType?.id;
+    
+    // Format route mode for display
+    const routeModeLabels = {
+      'express': 'Express (Skip to Selections)',
+      'standard': 'Standard (Key Questions Only)',
+      'deep': 'Deep-Dive (All Questions)'
+    };
+    const routeModeLabel = routeModeLabels[routeMode] || routeMode;
+    
+    // Format project type for display
+    const projectTypeLabels = {
+      'new-home': 'New Construction',
+      'remodel': 'Remodel'
+    };
+    const projectTypeLabel = projectTypeLabels[projectType] || projectType;
+    
+    // Format build type for display
+    const buildTypeLabels = {
+      'custom': 'Custom Build',
+      'builder-spec': 'Builder / Spec'
+    };
+    const buildTypeLabel = buildType ? buildTypeLabels[buildType] || buildType : null;
+    
+    // Title
+    const title = createElement('h2', 'idsq-title');
+    title.textContent = 'Pathway Coming Soon';
+    section.appendChild(title);
+    
+    // Description
+    const description = createElement('p', 'idsq-description');
+    description.innerHTML = `We're currently building out the <strong>${routeModeLabel}</strong> pathway for <strong>${projectTypeLabel}${buildTypeLabel ? ` - ${buildTypeLabel}` : ''}</strong> projects.`;
+    section.appendChild(description);
+    
+    // Additional info
+    const info = createElement('div', 'idsq-design-tip');
+    info.innerHTML = '<p>This pathway will guide you through a comprehensive set of questions to help refine your design preferences. In the meantime, you can use the <strong>Express</strong> pathway to jump directly to material selections.</p>';
+    section.appendChild(info);
+    
+    // Navigation
+    const navigation = createElement('div', 'idsq-step-navigation');
+    
+    // Option to switch to Express
+    if (routeMode !== 'express') {
+      const expressButton = createElement('button', 'idsq-button idsq-button-primary');
+      expressButton.textContent = 'Try Express Pathway';
+      expressButton.addEventListener('click', () => {
+        // Update route mode to express and proceed
+        state.routeMode = 'express';
+        state.jsonQuestionAnswers = state.jsonQuestionAnswers || {};
+        state.jsonQuestionAnswers.route_mode = 'express';
+        if (state.projectContext) {
+          state.projectContext.routeMode = 'express';
+        }
+        if (saveStateFn) saveStateFn(state);
+        state.currentFlow = 'materials-selection';
+        state.currentCategoryIndex = 0;
+        if (saveStateFn) saveStateFn(state);
+        renderMaterialsSelection(config, mount, state, handlers);
+      });
+      navigation.appendChild(expressButton);
+    }
+    
+    section.appendChild(navigation);
+    
     showSection(mount, section, handlers);
   }
 
@@ -2817,17 +3268,57 @@
     });
     scheduleButton.textContent = 'Schedule';
     
-    const selectMaterialsButton = createElement('button', 'idsq-button idsq-button-secondary');
-    selectMaterialsButton.textContent = 'Select Materials';
-    selectMaterialsButton.addEventListener('click', () => handlers.onSelectMaterials());
-    
-    buttonContainer.appendChild(scheduleButton);
-    buttonContainer.appendChild(selectMaterialsButton);
+    // For Whole Home, show "Continue" button to proceed to Expert Intro → Global Questions → Materials
+    // For single spaces, show "Select Materials" button
+    if (state.selectedSpace === 'general') {
+      const continueButton = createElement('button', 'idsq-button idsq-button-secondary');
+      continueButton.textContent = 'Continue';
+      continueButton.addEventListener('click', () => {
+        state.currentFlow = 'expert-intro';
+        state.projectContext = state.projectContext || {};
+        state.currentExpert = 'aria';
+        state.currentExpertQuestion = 0;
+        state.materialsSelections = {};
+        if (handlers._saveState) handlers._saveState(state);
+        renderExpertIntro(config, mount, state, handlers);
+      });
+      buttonContainer.appendChild(scheduleButton);
+      buttonContainer.appendChild(continueButton);
+    } else {
+      const selectMaterialsButton = createElement('button', 'idsq-button idsq-button-secondary');
+      selectMaterialsButton.textContent = 'Select Materials';
+      selectMaterialsButton.addEventListener('click', () => handlers.onSelectMaterials());
+      buttonContainer.appendChild(scheduleButton);
+      buttonContainer.appendChild(selectMaterialsButton);
+    }
 
     section.appendChild(title);
     section.appendChild(card);
     section.appendChild(scheduleCTA);
     section.appendChild(buttonContainer);
+
+    // Add spacebar support for secondary button (Continue or Select Materials)
+    const secondaryButton = buttonContainer.querySelector('.idsq-button-secondary');
+    if (secondaryButton) {
+      const handleKeyDown = (event) => {
+        if (event.key === ' ' || event.key === 'Spacebar') {
+          const activeElement = document.activeElement;
+          const isInputFocused = activeElement && (
+            activeElement.tagName === 'INPUT' ||
+            activeElement.tagName === 'TEXTAREA' ||
+            activeElement.isContentEditable
+          );
+          if (!isInputFocused && mount.contains(section)) {
+            event.preventDefault();
+            secondaryButton.click();
+          }
+        }
+      };
+      document.addEventListener('keydown', handleKeyDown);
+      section._keyboardCleanup = () => {
+        document.removeEventListener('keydown', handleKeyDown);
+      };
+    }
 
     showSection(mount, section, handlers);
   }
@@ -3065,8 +3556,11 @@
         margin-right: auto;
       }
       .idsq-option-grid.idsq-grid-four-items {
-        grid-template-columns: repeat(4, 1fr);
-        gap: 1rem;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.5rem;
+        max-width: 800px;
+        margin-left: auto;
+        margin-right: auto;
       }
       .idsq-options-grid {
         display: grid;
@@ -4056,6 +4550,9 @@
           margin-top: 1.5rem;
           grid-template-columns: 1fr;
         }
+        .idsq-option-grid.idsq-grid-four-items {
+          grid-template-columns: 1fr;
+        }
         .idsq-final-grid {
           grid-template-columns: 1fr;
         }
@@ -4384,10 +4881,31 @@
     const navigation = createElement('div', 'idsq-step-navigation');
     
     const continueButton = createElement('button', 'idsq-button idsq-button-primary');
-    continueButton.textContent = 'Let\'s Get Started →';
+    continueButton.textContent = 'Let\'s Get Started';
     continueButton.addEventListener('click', () => {
       handlers.onContinueFromExpertIntro();
     });
+    
+    // Add keyboard support: spacebar triggers continue button
+    const handleKeyDown = (event) => {
+      if (event.key === ' ' || event.key === 'Spacebar') {
+        const activeElement = document.activeElement;
+        const isInputFocused = activeElement && (
+          activeElement.tagName === 'INPUT' ||
+          activeElement.tagName === 'TEXTAREA' ||
+          activeElement.isContentEditable
+        );
+        if (!isInputFocused && mount.contains(section)) {
+          event.preventDefault();
+          continueButton.click();
+        }
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    section._keyboardCleanup = () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+    
     navigation.appendChild(continueButton);
     
     section.appendChild(navigation);
@@ -4395,7 +4913,272 @@
     showSection(mount, section, handlers);
   }
 
-  function renderProjectType(config, mount, state, handlers) {
+  /**
+   * Renders a JSON-based question (single or multi-select)
+   * @param {Object} question - Question object from JSON config
+   * @param {Object} config - Quiz config
+   * @param {HTMLElement} mount - Mount element
+   * @param {Object} state - Current state
+   * @param {Object} handlers - Event handlers
+   * @param {Function} saveStateFn - Function to save state: (state) => void
+   * @param {Function} onAnswer - Callback when question is answered: (questionId, answer) => void
+   * @param {Function} onContinue - Callback when continue is clicked: () => void
+   */
+  function renderJSONQuestion(question, config, mount, state, handlers, saveStateFn, onAnswer, onContinue) {
+    const section = createElement('section', 'idsq-step');
+    
+    // Get current answer and check if multi-select
+    const currentAnswer = state.jsonQuestionAnswers[question.id];
+    const isMultiSelect = question.type === 'multi';
+    
+    // Title - remove "(Select all that apply)" variations if present
+    const title = createElement('h2', 'idsq-title');
+    let promptText = question.prompt || '';
+    // Match variations: "(Select all that apply)", "(Select all that apply.)", "(Select All That Apply)", etc.
+    // Case-insensitive, optional period, flexible spacing
+    const selectAllRegex = /\([Ss]elect\s+all\s+that\s+apply\.?\)/gi;
+    const selectAllMatch = promptText.match(selectAllRegex);
+    if (selectAllMatch) {
+      // Remove all matches using replace with global flag
+      promptText = promptText.replace(selectAllRegex, '').trim();
+      // Clean up any double spaces or trailing/leading spaces
+      promptText = promptText.replace(/\s+/g, ' ').trim();
+    }
+    title.textContent = promptText;
+    section.appendChild(title);
+    
+    // Description - add "(Select all that apply)" in bold at the end if it was in the prompt
+    if (question.description || selectAllMatch) {
+      const description = createElement('p', 'idsq-description');
+      let descText = question.description || '';
+      if (selectAllMatch && isMultiSelect) {
+        // Add "Select all that apply" in bold at the end (without period for consistency)
+        descText = descText ? descText + ' <strong>(Select all that apply)</strong>' : '<strong>(Select all that apply)</strong>';
+      }
+      description.innerHTML = descText;
+      section.appendChild(description);
+    }
+    
+    // Create option grid
+    const grid = createElement('div', 'idsq-option-grid');
+    if (question.options && question.options.length <= 2) {
+      grid.classList.add('idsq-grid-two-items');
+    } else if (question.options && question.options.length === 4) {
+      grid.classList.add('idsq-grid-four-items');
+    }
+    
+    question.options.forEach((option) => {
+      const card = createElement('button', 'idsq-option-card idsq-space-card', {
+        type: 'button',
+      });
+      
+      // Check if selected
+      if (isMultiSelect) {
+        if (Array.isArray(currentAnswer) && currentAnswer.includes(option.id)) {
+          card.classList.add('idsq-selected');
+        }
+      } else {
+        if (currentAnswer === option.id) {
+          card.classList.add('idsq-selected');
+        }
+      }
+      
+      // Add click handler
+      card.addEventListener('click', () => {
+        if (isMultiSelect) {
+          // Toggle selection for multi-select
+          const current = state.jsonQuestionAnswers[question.id] || [];
+          const newAnswer = current.includes(option.id)
+            ? current.filter(id => id !== option.id)
+            : [...current, option.id];
+          state.jsonQuestionAnswers[question.id] = newAnswer;
+          if (saveStateFn) saveStateFn(state);
+          if (onAnswer) onAnswer(question.id, newAnswer);
+          // Re-render to update UI
+          renderJSONQuestion(question, config, mount, state, handlers, saveStateFn, onAnswer, onContinue);
+        } else {
+          // Single-select: set answer and auto-advance
+          state.jsonQuestionAnswers[question.id] = option.id;
+          if (saveStateFn) saveStateFn(state);
+          if (onAnswer) onAnswer(question.id, option.id);
+          // Update visual state immediately
+          card.classList.add('idsq-selected');
+          // Auto-advance after a brief delay to show selection feedback (reduced for faster UX)
+          setTimeout(() => {
+            if (onContinue) onContinue();
+          }, 300);
+        }
+      });
+      
+      // Option content - icons are optional
+      // If no icon provided, we'll show text-only cards
+      if (option.icon) {
+        const icon = createElement('div', 'idsq-space-icon');
+        icon.textContent = option.icon;
+        card.appendChild(icon);
+      } else {
+        // For text-only options, add some padding
+        card.style.padding = '1.5rem';
+      }
+      
+      const label = createElement('div', 'idsq-option-label');
+      const optionTitle = createElement('h3', 'idsq-option-title');
+      optionTitle.textContent = option.name;
+      label.appendChild(optionTitle);
+      
+      // Support both 'description' and 'desc' fields for flexibility
+      const optionDesc = option.description || option.desc;
+      if (optionDesc) {
+        const optionDescription = createElement('p', 'idsq-option-description');
+        optionDescription.textContent = optionDesc;
+        label.appendChild(optionDescription);
+      }
+      
+      card.appendChild(label);
+      grid.appendChild(card);
+    });
+    
+    section.appendChild(grid);
+    
+    // Navigation
+    const navigation = createElement('div', 'idsq-step-navigation');
+    
+    // Continue button logic:
+    // - For single-select: show if answered (but will auto-advance after selection)
+    // - For multi-select: always show (user must click to continue)
+    const hasAnswer = isMultiSelect 
+      ? (Array.isArray(currentAnswer) && currentAnswer.length > 0)
+      : (currentAnswer !== undefined && currentAnswer !== null);
+    
+    // Always show continue button for multi-select, or for single-select if answered
+    if (isMultiSelect || hasAnswer) {
+      const continueButton = createElement('button', 'idsq-button idsq-button-primary');
+      continueButton.textContent = 'Continue';
+      continueButton.addEventListener('click', () => {
+        if (onContinue) onContinue();
+      });
+      navigation.appendChild(continueButton);
+      
+      // Add spacebar support for continue button when selection is made
+      const handleKeyDown = (event) => {
+        if (event.key === ' ' || event.key === 'Spacebar') {
+          const activeElement = document.activeElement;
+          const isInputFocused = activeElement && (
+            activeElement.tagName === 'INPUT' ||
+            activeElement.tagName === 'TEXTAREA' ||
+            activeElement.isContentEditable
+          );
+          if (!isInputFocused && mount.contains(section)) {
+            event.preventDefault();
+            continueButton.click();
+          }
+        }
+      };
+      document.addEventListener('keydown', handleKeyDown);
+      section._keyboardCleanup = () => {
+        document.removeEventListener('keydown', handleKeyDown);
+      };
+    }
+    
+    section.appendChild(navigation);
+    
+    showSection(mount, section, handlers);
+  }
+
+  /**
+   * Renders global questions from JSON config
+   * @param {Array} questions - Array of question objects
+   * @param {number} questionIndex - Current question index
+   * @param {Object} config - Quiz config
+   * @param {HTMLElement} mount - Mount element
+   * @param {Object} state - Current state
+   * @param {Object} handlers - Event handlers
+   * @param {Function} saveStateFn - Function to save state: (state) => void
+   */
+  async function renderGlobalQuestions(questions, questionIndex, config, mount, state, handlers, saveStateFn) {
+    // Filter all questions first to get the actual visible questions
+    const context = {
+      projectType: state.projectType || (state.jsonQuestionAnswers && state.jsonQuestionAnswers.project_type),
+      buildType: state.buildType || (state.jsonQuestionAnswers && state.jsonQuestionAnswers.build_type),
+      routeMode: state.routeMode || (state.jsonQuestionAnswers && state.jsonQuestionAnswers.route_mode),
+      answers: state.jsonQuestionAnswers || {},
+      jsonQuestionAnswers: state.jsonQuestionAnswers || {},
+      projectContext: state.projectContext || {},
+    };
+    
+    // Filter questions based on current state
+    const visibleQuestions = filterQuestionsByConditions(questions, context);
+    
+    // Check if we've completed all visible questions
+    if (questionIndex >= visibleQuestions.length) {
+      // All global questions answered, proceed to next flow
+      if (saveStateFn) saveStateFn(state);
+      handlers.onContinueFromGlobalQuestions();
+      return;
+    }
+    
+    const question = visibleQuestions[questionIndex];
+    
+    // Render the question
+    renderJSONQuestion(
+      question,
+      config,
+      mount,
+      state,
+      handlers,
+      saveStateFn,
+      (questionId, answer) => {
+        // Handle answer
+        state.jsonQuestionAnswers[questionId] = answer;
+        
+        // Update state based on question type
+        if (questionId === 'project_type') {
+          state.projectType = answer;
+          if (!state.projectContext) state.projectContext = {};
+          state.projectContext.projectType = { id: answer };
+        } else if (questionId === 'build_type') {
+          state.buildType = answer;
+          if (!state.projectContext) state.projectContext = {};
+          state.projectContext.buildType = { id: answer };
+        } else if (questionId === 'route_mode') {
+          state.routeMode = answer;
+          if (!state.projectContext) state.projectContext = {};
+          state.projectContext.routeMode = answer;
+        }
+        
+        if (saveStateFn) saveStateFn(state);
+      },
+      () => {
+        // Continue to next question - re-filter in case conditions changed
+        if (saveStateFn) saveStateFn(state);
+        renderGlobalQuestions(questions, questionIndex + 1, config, mount, state, handlers, saveStateFn);
+      }
+    );
+  }
+
+  function renderProjectType(config, mount, state, handlers, saveStateFn) {
+    // Import design specifics questions from JS module
+    // The JS file should be loaded via script tag in HTML or imported via module system
+    // For now, we'll use dynamic import if available, otherwise fall back to fetch
+    if (typeof window !== 'undefined' && (window.DESIGN_SPECIFICS_QUESTIONS || window.GLOBAL_QUESTIONS)) {
+      // If loaded via script tag, use directly
+      const questions = window.DESIGN_SPECIFICS_QUESTIONS || window.GLOBAL_QUESTIONS;
+      if (questions && questions.length > 0) {
+        renderGlobalQuestions(questions, 0, config, mount, state, handlers, saveStateFn);
+        return;
+      }
+    }
+    
+    // Fallback: try to load via fetch (for backward compatibility or if JS not loaded)
+    const questionPath = config.globalQuestionsPath || config.designSpecificsPath || '../config/questions/design-specifics.js';
+    // For JS files, we'd need to use import() or load via script tag
+    // For now, fall back to old renderer
+    console.warn('Design specifics questions JS module not found, using fallback renderer');
+    renderProjectTypeFallback(config, mount, state, handlers);
+  }
+  
+  // Fallback renderer for backward compatibility
+  function renderProjectTypeFallback(config, mount, state, handlers) {
     const section = createElement('section', 'idsq-intro');
     
     // Ensure projectContext is initialized
@@ -4414,20 +5197,26 @@
     
     // Show project type options in room selection style
     const grid = createElement('div', 'idsq-option-grid');
-    if (config.projectContext.type.length === 2) {
+    if (config.projectContext && config.projectContext.type && config.projectContext.type.length === 2) {
       grid.classList.add('idsq-grid-two-items');
     }
-    config.projectContext.type.forEach((type) => {
+    
+    // Default project types if not in config
+    const projectTypes = config.projectContext?.type || [
+      { id: 'new-home', name: 'New Construction', icon: '🏗️', description: 'Building from scratch' },
+      { id: 'remodel', name: 'Remodel', icon: '🔨', description: 'Updating existing space' },
+    ];
+    
+    projectTypes.forEach((type) => {
       const card = createElement('button', 'idsq-option-card', {
         type: 'button',
       });
       card.addEventListener('click', () => {
-        // Select this type via handler
         handlers.onSelectProjectType(type.id);
       });
       
       // Check if selected
-      if (state.projectContext.projectType === type.id) {
+      if (state.projectContext.projectType === type.id || state.projectType === type.id) {
         card.classList.add('idsq-selected');
       }
       
@@ -4453,12 +5242,10 @@
     const navigation = createElement('div', 'idsq-step-navigation');
     
     // Continue button only if a selection has been made
-    const hasSelection = state.projectContext.projectType;
+    const hasSelection = state.projectContext.projectType || state.projectType;
     if (hasSelection) {
       const continueButton = createElement('button', 'idsq-button idsq-button-primary');
-    continueButton.textContent = 'Continue';
-    continueButton.textContent = 'Continue';
-    continueButton.textContent = 'Continue';
+      continueButton.textContent = 'Continue';
       continueButton.addEventListener('click', () => {
         handlers.onContinueFromProjectType();
       });
@@ -4916,7 +5703,11 @@
       projectId: generateProjectId(),
       userId: null, // Future: Webflow Member ID
       projectType: null, // 'new-home' | 'remodel'
+      buildType: null, // 'custom' | 'builder-spec'
+      routeMode: null, // 'express' | 'standard' | 'deep'
       spacesRequested: [], // Core spaces: Kitchen, Living Room, Primary Bedroom, Primary Bathroom, General Interior, General Exterior
+      selectedCategories: {}, // Selected categories by section gate: { section_gate_gi: ['flooring', 'baseboards', ...] }
+      jsonQuestionAnswers: {}, // Answers to JSON-based questions: { question_id: answer_id or [answer_ids] }
       additionalSpaces: [], // Duplicate spaces with quantity: [{ type: "Bedroom", count: 2, duplicateFrom: "Primary Bedroom", override: false }]
       duplicateRules: {
         allowDuplicateSpace: true,
@@ -4944,6 +5735,10 @@
     // Ensure new fields exist in savedState (backward compatibility)
     if (savedState) {
       if (!savedState.projectId) savedState.projectId = generateProjectId();
+      if (!savedState.buildType) savedState.buildType = null;
+      if (!savedState.routeMode) savedState.routeMode = null;
+      if (!savedState.selectedCategories) savedState.selectedCategories = {};
+      if (!savedState.jsonQuestionAnswers) savedState.jsonQuestionAnswers = {};
       if (!savedState.spacesRequested) savedState.spacesRequested = [];
       if (!savedState.additionalSpaces) savedState.additionalSpaces = [];
       if (!savedState.duplicateRules) savedState.duplicateRules = {
@@ -5026,6 +5821,10 @@
         leadData: {},
         newsLetterSignup: false,
         projectType: null,
+        buildType: null,
+        routeMode: null,
+        selectedCategories: {},
+        jsonQuestionAnswers: {},
         spacesRequested: [],
         additionalSpaces: [],
         duplicateRules: state.duplicateRules || {
@@ -5086,6 +5885,7 @@
     }
 
     const handlers = {
+      _saveState: saveState, // Make saveState available to handlers
       onStart() {
         // Skip name capture if user is invited with a name already provided, or if we have name but no email and not invited
         if (state.participantName && (state.invited || state.leadData?.email)) {
@@ -5137,6 +5937,7 @@
         if (!state.spacesRequested || state.spacesRequested.length === 0) {
           return;
         }
+        // Route to style quiz (word association + quiz rounds) first
         state.currentFlow = 'word-association';
         state.selectedSpace = 'general';
         state.spaceOrder = state.spacesRequested.map((space) => normalizeSpaceId(space.id));
@@ -5212,6 +6013,11 @@
         sendToWebhook(config, payload).catch(() => {
           // Silently fail - don't interrupt user experience
         });
+        
+        // Always show success page first to display the final style result
+        // The success page will have a "Continue" button for Whole Home that routes to Expert Intro
+        state.currentFlow = 'success';
+        saveState(state);
         renderSuccess(config, mount, state, handlers);
       },
       onGoBack() {
@@ -5341,13 +6147,32 @@
         renderExpertIntro(config, mount, state, handlers);
       },
       onContinueFromExpertIntro() {
-        // Show project type selection
-        state.currentFlow = 'project-type';
-        if (!state.projectContext) {
-          state.projectContext = {};
+        // For Whole Home flow, route to Global Questions first
+        // Then Global Questions will route back here, and we'll proceed based on route_mode
+        if (state.selectedSpace === 'general' && !state.jsonQuestionAnswers?.route_mode) {
+          // Haven't answered global questions yet, route to them
+          state.currentFlow = 'project-type';
+          saveState(state);
+          renderProjectType(config, mount, state, handlers, saveState);
+          return;
         }
-        saveState(state);
-        renderProjectType(config, mount, state, handlers);
+        
+        // Route based on route_mode selected in global questions
+        const routeMode = state.routeMode || state.jsonQuestionAnswers?.route_mode || state.projectContext?.routeMode;
+        
+        // Default to express if routeMode is not set (for backward compatibility)
+        if (!routeMode || routeMode === 'express') {
+          // Express: Skip to materials selection
+          state.currentFlow = 'materials-selection';
+          state.currentCategoryIndex = 0;
+          saveState(state);
+          renderMaterialsSelection(config, mount, state, handlers);
+        } else {
+          // Standard or Deep: Show coming soon page (pathway not yet developed)
+          state.currentFlow = 'pathway-coming-soon';
+          saveState(state);
+          renderPathwayComingSoon(config, mount, state, handlers, saveState);
+        }
       },
       onSelectProjectType(typeId) {
         // Save project type selection
@@ -5367,6 +6192,53 @@
         state.currentExpertQuestion = 0;
         saveState(state);
         renderExpertQuestion(config, mount, state, handlers);
+      },
+      onContinueFromGlobalQuestions() {
+        // After all global questions are answered, check route mode and proceed accordingly
+        if (!state.projectContext) {
+          state.projectContext = {};
+        }
+        // Ensure projectContext has the answers from JSON questions
+        if (state.jsonQuestionAnswers && state.jsonQuestionAnswers.project_type) {
+          state.projectContext.projectType = { id: state.jsonQuestionAnswers.project_type };
+          state.projectType = state.jsonQuestionAnswers.project_type;
+        }
+        if (state.jsonQuestionAnswers && state.jsonQuestionAnswers.build_type) {
+          state.projectContext.buildType = { id: state.jsonQuestionAnswers.build_type };
+          state.buildType = state.jsonQuestionAnswers.build_type;
+        }
+        if (state.jsonQuestionAnswers && state.jsonQuestionAnswers.route_mode) {
+          state.projectContext.routeMode = state.jsonQuestionAnswers.route_mode;
+          state.routeMode = state.jsonQuestionAnswers.route_mode;
+        }
+        
+        // Check route mode and route directly - don't go back to expert intro if Express
+        const routeMode = state.routeMode || state.jsonQuestionAnswers?.route_mode || state.projectContext?.routeMode;
+        
+        if (routeMode === 'express') {
+          // Express: Check if materials selection is available for this space
+          const materialsAvailable = config.materialsBySpace && 
+                                     config.materialsBySpace[state.selectedSpace] && 
+                                     config.materialsBySpace[state.selectedSpace].length > 0;
+          
+          if (materialsAvailable) {
+            // Materials available: Skip directly to materials selection
+            state.currentFlow = 'materials-selection';
+            state.currentCategoryIndex = 0;
+            saveState(state);
+            renderMaterialsSelection(config, mount, state, handlers);
+          } else {
+            // Materials not available: Show coming soon page
+            state.currentFlow = 'pathway-coming-soon';
+            saveState(state);
+            renderPathwayComingSoon(config, mount, state, handlers, saveState);
+          }
+        } else {
+          // Standard or Deep: Go to expert intro first
+          state.currentFlow = 'expert-intro';
+          saveState(state);
+          renderExpertIntro(config, mount, state, handlers);
+        }
       },
       onGoBackFromExpertQuestion() {
         state.currentExpertQuestion -= 1;
@@ -5506,11 +6378,15 @@
       } else if (flow === 'expert-intro') {
         renderExpertIntro(config, mount, state, handlers);
       } else if (flow === 'project-type') {
-        renderProjectType(config, mount, state, handlers);
+        renderProjectType(config, mount, state, handlers, saveState);
       } else if (flow === 'project-context') {
         renderExpertQuestion(config, mount, state, handlers);
       } else if (flow === 'materials-selection') {
         renderMaterialsSelection(config, mount, state, handlers);
+      } else if (flow === 'pathway-coming-soon') {
+        renderPathwayComingSoon(config, mount, state, handlers, saveState);
+      } else if (flow === 'success') {
+        renderSuccess(config, mount, state, handlers);
       } else {
         renderIntro(config, mount, handlers);
       }

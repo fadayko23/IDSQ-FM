@@ -349,25 +349,85 @@ Each question needs:
 
 ## Immediate Next Steps (Nov 2025)
 
-1. Finalize Kitchen & Living Room expert pathways for both **New Construction** and **Remodel** scenarios (Phase 3).
-2. Define/implement qualifying questions per core space (Kitchen, Living Room, Bedroom, Bathroom) including category flags (Phase 4).
-3. Stand up kitchen material categories in config to validate end-to-end flow (Phase 6).
-4. Extract materials-selection modules into a dedicated `materials-flow.js` (or similar) referenced by `idsq-quiz.js` to improve maintainability.
-5. Update Webflow embed instructions once module split is complete.
-6. Document per-space question outlines in `QUESTIONS_AND_PATHWAYS.md` before implementation to keep UX aligned.
+1. ✅ **Import JSON Configuration Files:** Global questions and General Interior deep-dive questions have been imported into `config/questions/` (see below).
+2. ✅ **Integrate JSON Question Loader:** JSON question loader, conditional evaluator, and renderer have been implemented in `idsq-quiz.js`.
+3. ✅ **Global Questions Integration:** Global questions (project_type, build_type, route_mode) are now loaded from JSON and rendered dynamically with conditional logic.
+4. **Test Global Questions Flow:** Test the end-to-end flow of global questions in the browser to ensure proper rendering and state management.
+5. **Integrate General Interior Deep-Dive Questions:** Integrate the General Interior questions into the materials selection flow (pending - requires materials flow integration).
+6. Finalize Kitchen & Living Room expert pathways for both **New Construction** and **Remodel** scenarios (Phase 3).
+7. Define/implement qualifying questions per core space (Kitchen, Living Room, Bedroom, Bathroom) including category flags (Phase 4).
+8. Stand up kitchen material categories in config to validate end-to-end flow (Phase 6).
+9. Extract materials-selection modules into a dedicated `materials-flow.js` (or similar) referenced by `idsq-quiz.js` to improve maintainability.
+10. Update Webflow embed instructions once module split is complete.
+11. Document per-space question outlines in `QUESTIONS_AND_PATHWAYS.md` before implementation to keep UX aligned.
 
 ---
 
 ## Files to Create/Modify
 
 **Modify:**
-- `src/idsq-quiz.js` (major expansion)
+- `src/idsq-quiz.js` (major expansion, integrate JSON question loader)
 
 **Create:**
+- ✅ `config/questions/Global-Questions.json` (project type, build type, route mode)
+- ✅ `config/questions/GeneralInterior-DeepDive.json` (GI categories and questions)
+- `config/questions/GeneralExterior-DeepDive.json` (future - GE categories)
+- `config/questions/Kitchen-Questions.json` (future - Kitchen expert questions)
+- `config/questions/LivingRoom-Questions.json` (future - Living Room expert questions)
+- `config/questions/Bedroom-Questions.json` (future - Bedroom expert questions)
+- `config/questions/Bathroom-Questions.json` (future - Bathroom expert questions)
 - `WHOLE_HOME_SPEC.md` (reference doc with full spec)
 - `CATEGORY_QUALIFIERS_CONFIG.js` (or add to DEFAULT_CONFIG)
 - `SPACE_QUESTIONS_CONFIG.js` (or add to DEFAULT_CONFIG)
 
 **Update:**
-- `QUESTIONS_AND_PATHWAYS.md` (add whole-home pathways)
+- `QUESTIONS_AND_PATHWAYS.md` (add whole-home pathways, reference JSON structure)
 - `APP_DESCRIPTION.md` (update with whole-home flow)
+
+---
+
+## JSON Question Configuration Structure
+
+### Imported Files
+
+#### `config/questions/Global-Questions.json`
+Contains universal questions that apply before space-specific flows:
+- **project_type**: New Construction vs Remodel
+- **build_type**: Custom Build vs Builder/Spec (conditional on new-home)
+- **route_mode**: Express, Standard, or Deep-Dive
+
+#### `config/questions/GeneralInterior-DeepDive.json`
+Contains General Interior category selection and deep-dive questions:
+- **section_gate_gi**: Multi-select gate for GI categories (flooring, baseboards, crown, doors, trim, etc.)
+- **Category Questions**: Flooring (continuity, material families, specs), Baseboards (profile, height, finish), Interior Doors (style, core, height, motion, hardware)
+
+### JSON Structure
+Each question follows this format:
+```json
+{
+  "id": "question_id",
+  "space": "Global" | "General Interior" | "Kitchen" | etc.,
+  "persona": "clara" | "aria" | "mason",
+  "type": "single" | "multi",
+  "prompt": "Question text",
+  "description": "Help text",
+  "options": [
+    { "id": "option_id", "name": "Option Name", "description": "Option description", "flags": ["flag1"] }
+  ],
+  "showIf": {
+    "all": [
+      { "routeMode": ["deep"] },
+      { "selected": "section_gate_gi:flooring" },
+      { "answerOf": "previous_question", "in": ["answer1", "answer2"] }
+    ]
+  },
+  "prefOnlyIfBuilder": true
+}
+```
+
+### Integration Steps
+1. Create JSON loader utility in `idsq-quiz.js` to fetch and parse question files
+2. Replace hardcoded `DEFAULT_CONFIG.expertQuestions` with JSON-loaded questions
+3. Implement conditional rendering based on `showIf` conditions
+4. Route questions based on `route_mode` (express/standard/deep)
+5. Handle `prefOnlyIfBuilder` flag for builder/spec builds

@@ -442,11 +442,81 @@ When designing the Airtable base, consider these data points collected:
 
 ## UPCOMING ADDITIONS (PLANNING)
 
+- ✅ **JSON Question Configuration:** Global questions and General Interior deep-dive questions have been imported into `config/questions/` (see below).
 - Draft question trees for Kitchen, Living Room, Bedroom, and Whole-Home core spaces covering both **New Construction** and **Remodel** pathways.
 - Define per-category qualifier sets for Kitchen (Flooring, Backsplash, Countertops) and map resulting flags.
 - Capture duplication/quantity logic requirements for repeated spaces (e.g., Bedrooms) ahead of implementation.
 - Outline data contract for future Airtable-powered material catalogs (fields, tags, filtering rules).
 - Document restart behaviors: **Start Over** returns to Intro (state cleared), **Restart This Section** returns to Expert Team while retaining quiz outcomes.
+
+---
+
+## JSON QUESTION CONFIGURATION FILES
+
+### Imported Configuration Files
+
+#### `config/questions/Global-Questions.json`
+**Purpose:** Universal questions that apply before space-specific flows.
+
+**Questions:**
+1. **project_type** (single-select)
+   - Options: New Construction, Remodel
+   - Always shown first
+
+2. **build_type** (single-select)
+   - Options: Custom Build, Builder/Spec
+   - Conditional: Only shown if `project_type = "new-home"`
+
+3. **route_mode** (single-select)
+   - Options: Express (Skip to Selections), Standard (Key Questions Only), Deep-Dive (All Questions)
+   - Always shown after project_type/build_type
+
+#### `config/questions/GeneralInterior-DeepDive.json`
+**Purpose:** General Interior category selection and deep-dive questions for home-wide finishes and systems.
+
+**Structure:**
+1. **section_gate_gi** (multi-select)
+   - Allows users to select which GI categories they want to address:
+     - Flooring, Baseboards, Crown Moldings, Interior Doors, Door Trim, Window Trim
+     - Ceiling Finish, Wall Finish, Decorative Vent Grills, Lighting
+     - Ceiling Fans, Exhaust Fans, A/V, Security, Staircase
+     - Feature Walls, Accent Ceilings, Smart Technology
+
+2. **Category Questions** (organized by category)
+   - **Flooring:**
+     - `gi_floor_continuity`: Continuous vs Zoned flooring
+     - `gi_floor_material_single`: Material families (engineered wood, solid wood, LVP, tile, stone, carpet, polished concrete)
+     - `gi_floor_specs`: Specifications (wide plank, pattern, waterproof, matte finish)
+   - **Baseboards:**
+     - `gi_bb_profile`: Profile style (square, stepped, craftsman, colonial, shadow reveal)
+     - `gi_bb_height`: Height preference (0-3", 3-6", 6"+)
+     - `gi_bb_finish`: Finish grade (paint grade, stain grade, match existing)
+   - **Interior Doors:**
+     - `gi_door_style`: Door style (flush, shaker, 2-panel, 5-panel, glass-lite)
+     - `gi_door_core`: Core construction (solid, hollow, MDF)
+     - `gi_door_height`: Height preference (78", 80", 84", 90", 96", 108")
+     - `gi_door_motion`: Motion types (swing, pocket, barn)
+     - `gi_door_hardware`: Hardware & finishes (lever, knob, brass, matte black, chrome, brushed nickel)
+
+**Conditional Logic:**
+- All questions require `route_mode = "deep"`
+- Questions only show if their category is selected in `section_gate_gi`
+- Some questions depend on previous answers (e.g., `gi_floor_material_single` only shows if `gi_floor_continuity = "single"`)
+- `prefOnlyIfBuilder: true` indicates the question acts as a preference only for builder/spec builds
+
+### Integration Notes
+- Questions use `showIf` conditions with `all` arrays for multiple conditions
+- Route mode filtering: `{ "routeMode": ["deep"] }`
+- Category selection filtering: `{ "selected": "section_gate_gi:category_id" }`
+- Previous answer filtering: `{ "answerOf": "question_id", "in": ["answer1", "answer2"] }`
+- Flags can be set via options: `"flags": ["flag1", "flag2"]`
+
+### Future JSON Files
+- `config/questions/GeneralExterior-DeepDive.json` (GE categories and questions)
+- `config/questions/Kitchen-Questions.json` (Kitchen expert questions for New Construction/Remodel)
+- `config/questions/LivingRoom-Questions.json` (Living Room expert questions)
+- `config/questions/Bedroom-Questions.json` (Bedroom expert questions)
+- `config/questions/Bathroom-Questions.json` (Bathroom expert questions - may expand existing)
 
 ---
 
