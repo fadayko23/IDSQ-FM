@@ -6770,8 +6770,48 @@
         if (saveStateFn) saveStateFn(state);
       },
       () => {
-        // Check if this was the last question in the current category
-        if (questionIndex === lastQuestionInCategory && currentCategory) {
+        // IMPORTANT: Recalculate lastQuestionInCategory AFTER answer is saved
+        // because saving the answer may change which questions are visible (due to showIf conditions)
+        // Re-filter questions with updated answers
+        const updatedContext = {
+          projectType: state.projectType || state.jsonQuestionAnswers?.project_type,
+          buildType: state.buildType || state.jsonQuestionAnswers?.build_type,
+          routeMode: state.routeMode || state.jsonQuestionAnswers?.route_mode,
+          answers: state.jsonQuestionAnswers || {},
+          jsonQuestionAnswers: state.jsonQuestionAnswers || {},
+          projectContext: state.projectContext || {},
+          selectedCategories: state.selectedCategories || {},
+        };
+        
+        const updatedVisibleQuestions = filterQuestionsByConditions(allQuestions, updatedContext);
+        const updatedQuestionsToShow = updatedVisibleQuestions.filter(q => {
+          if (q.id && q.id.startsWith('section_gate_')) return false;
+          if (selectedCategoriesForSpace.length > 0) {
+            if (q.category) {
+              return selectedCategoriesForSpace.includes(q.category);
+            }
+            return false;
+          }
+          return !q.category || true;
+        });
+        
+        // Recalculate lastQuestionInCategory with updated filtered questions
+        const updatedQuestionsByCategory = {};
+        updatedQuestionsToShow.forEach((q, idx) => {
+          const cat = q.category || 'uncategorized';
+          if (!updatedQuestionsByCategory[cat]) {
+            updatedQuestionsByCategory[cat] = [];
+          }
+          updatedQuestionsByCategory[cat].push({ question: q, index: idx });
+        });
+        
+        const updatedCurrentCategoryQuestions = updatedQuestionsByCategory[currentCategory] || [];
+        const updatedLastQuestionInCategory = updatedCurrentCategoryQuestions.length > 0 
+          ? updatedCurrentCategoryQuestions[updatedCurrentCategoryQuestions.length - 1].index 
+          : questionIndex;
+        
+        // Check if this was the last question in the current category (using updated calculation)
+        if (questionIndex === updatedLastQuestionInCategory && currentCategory) {
           // Category questions complete, route to materials selection for this category
           handlers.onCategoryQuestionsComplete(spaceId, currentCategory);
         } else {
