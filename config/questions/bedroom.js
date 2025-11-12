@@ -17,7 +17,7 @@ const BEDROOM_DEEPDIVE = [
         id: "section_gate_bedroom",
         type: "multi",
         prompt: "Which Bedroom categories do you want to decide now?",
-        description: "Select the items you want to work through in this bedroom. **(Select all that apply.)**",
+        description: "Select the items you want to work through in this bedroom. **(Select all that apply)**",
         options: [
           { id: "room_dimensions",  name: "Room Dimensions" },
           { id: "age_needs_suite",  name: "Demographic Needs" },
@@ -102,7 +102,7 @@ const BEDROOM_DEEPDIVE = [
         id: "br_nursery_core",
         type: "multi",
         prompt: "Which nursery elements are needed?",
-        description: "Select core items to plan a functional, calming nursery. **(Select all that apply.)**",
+        description: "Select core items to plan a functional, calming nursery. **(Select all that apply)**",
         options: [
           { id: "crib",             name: "Crib",               description: "Standard crib with safe clearances." },
           { id: "convertible_crib", name: "Convertible Crib",   description: "Transforms to a toddler bed later." },
@@ -136,7 +136,7 @@ const BEDROOM_DEEPDIVE = [
         id: "br_child_needs",
         type: "multi",
         prompt: "Which elements should a young child's bedroom include?",
-        description: "Pick furniture and features that support sleep, play, and storage. **(Select all that apply.)**",
+        description: "Pick furniture and features that support sleep, play, and storage. **(Select all that apply)**",
         options: [
           { id: "twin_or_full", name: "Twin or Full Bed", description: "Age-appropriate footprint with safety in mind." },
           { id: "toy_storage",  name: "Toy Storage",       description: "Bins, shelves, or cubbies for organization." },
@@ -155,7 +155,7 @@ const BEDROOM_DEEPDIVE = [
         id: "br_teen_needs",
         type: "multi",
         prompt: "Which elements should a teen's bedroom include?",
-        description: "Support study, hobbies, and personal expression with the right components. **(Select all that apply.)**",
+        description: "Support study, hobbies, and personal expression with the right components. **(Select all that apply)**",
         options: [
           { id: "full_or_queen", name: "Full or Queen Bed",   description: "Larger sleeping surface for growth and comfort." },
           { id: "desk_study",    name: "Study Desk",          description: "Ergonomic chair and task lighting encouraged." },
@@ -174,7 +174,7 @@ const BEDROOM_DEEPDIVE = [
         id: "br_adult_options",
         type: "multi",
         prompt: "Which additional features would you like to include?",
-        description: "Enhance comfort and function to suit your routine. **(Select all that apply.)**",
+        description: "Enhance comfort and function to suit your routine. **(Select all that apply)**",
         options: [
           { id: "reading_sconces", name: "Bedside Reading Sconces", description: "Hardwired lighting with focused beams." },
           { id: "makeup_vanity",   name: "Make-Up Vanity",          description: "Dedicated station with task lighting and storage." },
@@ -192,7 +192,7 @@ const BEDROOM_DEEPDIVE = [
         id: "br_inlaw_needs",
         type: "multi",
         prompt: "Which features should the in-law bedroom include?",
-        description: "Plan for comfort, accessibility, and independence. **(Select all that apply.)**",
+        description: "Plan for comfort, accessibility, and independence. **(Select all that apply)**",
         options: [
           { id: "lower_bed_height", name: "Lower Bed Height",  description: "Easier ingress and egress with many frames." },
           { id: "seating_chair",    name: "Seating/Chair",      description: "Comfortable seat for dressing and rest." },
@@ -299,7 +299,7 @@ const BEDROOM_DEEPDIVE = [
         id: "br_nightstands",
         type: "multi",
         prompt: "How should we configure the nightstands?",
-        description: "Pick the configuration and features you prefer. **(Select all that apply.)**",
+        description: "Pick the configuration and features you prefer. **(Select all that apply)**",
         options: [
           { id: "pair",             name: "Pair (Both Sides)",   description: "Two nightstands for balance and storage." },
           { id: "single_only",      name: "Single Only",         description: "One nightstand due to space or preference." },
@@ -343,7 +343,7 @@ const BEDROOM_DEEPDIVE = [
         id: "br_seating_types",
         type: "multi",
         prompt: "Which seating types should we consider?",
-        description: "Pick the seating mix that best fits your routine and available space. **(Select all that apply.)**",
+        description: "Pick the seating mix that best fits your routine and available space. **(Select all that apply)**",
         options: [
           { id: "chaise",        name: "Chaise/Lounger",      description: "Relaxed lounge for reading and rest." },
           { id: "bench",         name: "Bench (At Bed/Wall)", description: "Compact perch and staging surface." },
@@ -399,7 +399,7 @@ const BEDROOM_DEEPDIVE = [
         id: "br_rug_material",
         type: "multi",
         prompt: "Which rug materials or constructions do you prefer?",
-        description: "Select preferred rug families to guide recommendations. **(Select all that apply.)**",
+        description: "Select preferred rug families to guide recommendations. **(Select all that apply)**",
         options: [
           { id: "wool",           name: "Wool",              description: "Resilient natural fiber; durable and warm." },
           { id: "performance",    name: "Performance Fiber", description: "High-performance synthetics for stain resistance." },
@@ -426,7 +426,7 @@ const BEDROOM_DEEPDIVE = [
         id: "br_wt_types",
         type: "multi",
         prompt: "Which window treatments do you prefer?",
-        description: "Select treatment types to meet privacy, light control, and style goals. **(Select all that apply.)**",
+        description: "Select treatment types to meet privacy, light control, and style goals. **(Select all that apply)**",
         options: [
           { id: "drapery",      name: "Drapery",        description: "Layered panels; excellent for blackout and acoustics." },
           { id: "roman",        name: "Roman Shades",   description: "Textile shade with structured folds and linings." },
@@ -440,7 +440,7 @@ const BEDROOM_DEEPDIVE = [
         id: "br_wt_requirements",
         type: "multi",
         prompt: "Which window treatment requirements apply?",
-        description: "Pick essential performance features to filter hardware and fabrics. **(Select all that apply.)**",
+        description: "Pick essential performance features to filter hardware and fabrics. **(Select all that apply)**",
         options: [
           { id: "blackout",      name: "Blackout",      description: "Maximum light exclusion for improved sleep." },
           { id: "privacy",       name: "Privacy",       description: "Daytime or nighttime privacy without full blackout." },
@@ -474,7 +474,7 @@ const BEDROOM_DEEPDIVE = [
         id: "br_closet_components",
         type: "multi",
         prompt: "Which closet components should we include?",
-        description: "Pick the storage components that best fit your wardrobe and routine. **(Select all that apply.)**",
+        description: "Pick the storage components that best fit your wardrobe and routine. **(Select all that apply)**",
         options: [
           { id: "double_hang",    name: "Double-Hang",        description: "Two rods to maximize hanging capacity." },
           { id: "long_hang",      name: "Long-Hang",          description: "Tall section for dresses and coats." },
@@ -574,7 +574,7 @@ const BEDROOM_DEEPDIVE = [
         id: "br_fireplace_surround",
         type: "multi",
         prompt: "Which surround materials should we consider?",
-        description: "Pick finishes that complement floors and furnishings. **(Select all that apply.)**",
+        description: "Pick finishes that complement floors and furnishings. **(Select all that apply)**",
         options: [
           { id: "stone",  name: "Stone",  description: "Durable and timeless with natural variation." },
           { id: "tile",   name: "Tile",   description: "Pattern, color, and texture across many lines." },
@@ -601,7 +601,7 @@ const BEDROOM_DEEPDIVE = [
         id: "br_floor_families",
         type: "multi",
         prompt: "Which bedroom flooring materials do you prefer?",
-        description: "Pick the flooring families you're open to using. We'll filter products accordingly. **(Select all that apply.)**",
+        description: "Pick the flooring families you're open to using. We'll filter products accordingly. **(Select all that apply)**",
         options: [
           { id: "carpet",       name: "Carpet",                  description: "Warm, quiet, comfortable underfoot." },
           { id: "eng_wood",     name: "Engineered Wood",         description: "Stable wood construction; pairs well with rugs." },
@@ -615,7 +615,7 @@ const BEDROOM_DEEPDIVE = [
         id: "br_floor_specs",
         type: "multi",
         prompt: "Which flooring traits matter to you?",
-        description: "Choose any must-have attributes to refine options. **(Select all that apply.)**",
+        description: "Choose any must-have attributes to refine options. **(Select all that apply)**",
         options: [
           { id: "wide_plank_7",     name: "Wide Plank (≥7″)",             description: "Larger visual scale for wood or LVP." },
           { id: "pattern_herring",  name: "Pattern: Herringbone/Parquet",  description: "Decorative layout for added character." },
@@ -733,7 +733,7 @@ const BEDROOM_DEEPDIVE = [
         id: "br_ceiling_features",
         type: "multi",
         prompt: "Would you like any ceiling features?",
-        description: "Optional architectural features to enhance character and lighting. **(Select all that apply.)**",
+        description: "Optional architectural features to enhance character and lighting. **(Select all that apply)**",
         options: [
           { id: "tray",     name: "Tray",              description: "Raised center to emphasize symmetry." },
           { id: "vaulted",  name: "Vaulted",           description: "Cathedral or sloped ceilings for volume." },
@@ -756,7 +756,7 @@ const BEDROOM_DEEPDIVE = [
         id: "br_lighting_layers",
         type: "multi",
         prompt: "Which lighting layers should this bedroom include?",
-        description: "Pick the layers that fit your routine. We'll filter fixtures accordingly. **(Select all that apply.)**",
+        description: "Pick the layers that fit your routine. We'll filter fixtures accordingly. **(Select all that apply)**",
         options: [
           { id: "ambient", name: "Ambient", description: "General illumination from ceiling or recessed fixtures." },
           { id: "task",    name: "Task",    description: "Reading lights, bedside sconces, or desk lamps." },
@@ -780,7 +780,7 @@ const BEDROOM_DEEPDIVE = [
         id: "br_lighting_controls",
         type: "multi",
         prompt: "Which control requirements apply?",
-        description: "Pick controls and features that you want supported by the lighting package. **(Select all that apply.)**",
+        description: "Pick controls and features that you want supported by the lighting package. **(Select all that apply)**",
         options: [
           { id: "dimming",       name: "Dimming",        description: "Smooth transitions to reduce glare and set mood." },
           { id: "smart_controls",name: "Smart Controls", description: "App or voice control and scene presets." },

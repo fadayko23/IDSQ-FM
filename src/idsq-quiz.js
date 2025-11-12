@@ -878,14 +878,22 @@
       ],
       kitchen: [
         { id: 'flooring', name: 'Flooring', description: 'Choose your perfect flooring foundation' },
-        { id: 'backsplash', name: 'Backsplash', description: 'Select wall tiles that inspire' },
+        { id: 'baseboards', name: 'Baseboards', description: 'Select baseboard style and finish' },
+        { id: 'crown_moldings', name: 'Crown Moldings', description: 'Choose crown molding details' },
+        { id: 'ceiling_finish', name: 'Ceiling Finish', description: 'Select ceiling texture and features' },
+        { id: 'wall_finish', name: 'Wall Finish', description: 'Choose wall finish type and color' },
+        { id: 'lighting', name: 'Lighting', description: 'Select lighting layers and controls' },
+        { id: 'cabinetry', name: 'Cabinetry', description: 'Choose cabinet style and finish' },
         { id: 'countertops', name: 'Countertops', description: 'Pick your surface material' },
-        { id: 'faucet', name: 'Faucet', description: 'Choose your faucet style' },
-        { id: 'cabinet-door', name: 'Cabinet Door', description: 'Select door style' },
-        { id: 'cabinet-finish', name: 'Cabinet Finish', description: 'Pick your cabinet finish' },
-        { id: 'cabinet-hardware', name: 'Cabinet Hardware', description: 'Choose hardware details' },
+        { id: 'backsplash', name: 'Backsplash', description: 'Select wall tiles that inspire' },
         { id: 'appliances', name: 'Appliances', description: 'Select your appliances' },
-        { id: 'paint', name: 'Paint Color', description: 'Select your wall color' },
+        { id: 'hood_ventilation', name: 'Hood / Ventilation', description: 'Choose range hood and ventilation' },
+        { id: 'sink_faucet', name: 'Sink + Faucet', description: 'Select sink type and faucet style' },
+        { id: 'storage', name: 'Storage Solutions', description: 'Choose storage components' },
+        { id: 'seating', name: 'Seating', description: 'Select seating type and configuration' },
+        { id: 'hardware_accessories', name: 'Hardware & Accessories', description: 'Choose hardware finishes' },
+        { id: 'waste_management', name: 'Waste Management', description: 'Select waste and recycling solutions' },
+        { id: 'special_features', name: 'Special Features', description: 'Choose special features and accents' },
       ],
     },
   };
@@ -978,20 +986,37 @@
     }
     
     // Previous answer condition: { "answerOf": "question_id", "in": ["answer1", "answer2"] }
-    if (condition.answerOf && condition.in) {
+    // OR { "answerOf": "question_id", "notIn": ["answer1", "answer2"] }
+    if (condition.answerOf) {
       const questionId = condition.answerOf;
       // Check both jsonQuestionAnswers and answers for backward compatibility
       const answers = context.answers || context.jsonQuestionAnswers || context.projectContext?.answers || context.projectContext?.jsonQuestionAnswers || {};
       const answer = answers[questionId];
-      if (answer === undefined || answer === null) {
-        return false; // Question not answered yet
-      }
-      if (Array.isArray(answer)) {
-        // Multi-select: check if any selected answer is in the condition
-        return answer.some(a => condition.in.includes(a));
-      } else {
-        // Single-select: check if answer is in the condition
-        return condition.in.includes(answer);
+      
+      if (condition.in) {
+        // Positive condition: answer must be in the list
+        if (answer === undefined || answer === null) {
+          return false; // Question not answered yet
+        }
+        if (Array.isArray(answer)) {
+          // Multi-select: check if any selected answer is in the condition
+          return answer.some(a => condition.in.includes(a));
+        } else {
+          // Single-select: check if answer is in the condition
+          return condition.in.includes(answer);
+        }
+      } else if (condition.notIn) {
+        // Negative condition: answer must NOT be in the list
+        if (answer === undefined || answer === null) {
+          return false; // Question not answered yet - can't evaluate notIn
+        }
+        if (Array.isArray(answer)) {
+          // Multi-select: check if NONE of the selected answers are in the notIn list
+          return !answer.some(a => condition.notIn.includes(a));
+        } else {
+          // Single-select: check if answer is NOT in the notIn list
+          return !condition.notIn.includes(answer);
+        }
       }
     }
     
@@ -1020,6 +1045,80 @@
   function filterQuestionsByConditions(questions, context) {
     if (!Array.isArray(questions)) return [];
     return questions.filter(q => evaluateQuestionCondition(q.showIf, context));
+  }
+  
+  /**
+   * Determines if materials selection should be skipped for a category based on answers
+   * @param {string} spaceId - Space ID
+   * @param {string} categoryId - Category ID
+   * @param {Object} state - Current state
+   * @param {Object} config - Quiz config
+   * @param {Function} saveStateFn - Function to save state (optional)
+   * @returns {boolean} - True if materials should be skipped
+   */
+  function shouldSkipCategoryMaterials(spaceId, categoryId, state, config, saveStateFn) {
+    const answers = state.jsonQuestionAnswers || {};
+    
+    // Check category-specific skip conditions
+    // Crown moldings: skip if "Not Applicable" was selected
+    if (categoryId === 'crown_moldings') {
+      const crownPresenceAnswer = answers['kit_crown_presence'];
+      if (crownPresenceAnswer === 'none') {
+        console.log('Skipping crown_moldings materials - Not Applicable selected');
+        return true;
+      }
+    }
+    
+    // Backsplash: skip if "slab" material is selected AND expression is "matching"
+    // (because it will match the countertop selection from previous category)
+    if (categoryId === 'backsplash') {
+      const backsplashMaterialAnswer = answers['kit_backsplash_material'];
+      const backsplashExpressionAnswer = answers['kit_backsplash_expression'];
+      
+      // Check if "slab" is selected (could be array for multi-select)
+      const hasSlab = Array.isArray(backsplashMaterialAnswer) 
+        ? backsplashMaterialAnswer.includes('slab')
+        : backsplashMaterialAnswer === 'slab';
+      
+      // Check if expression is "matching"
+      const isMatching = backsplashExpressionAnswer === 'matching';
+      
+      if (hasSlab && isMatching) {
+        console.log('Skipping backsplash materials - Slab selected with Matching expression (will match countertops)');
+        return true;
+      }
+    }
+    
+    // Seating: skip if "No Seating Needed" (none) is selected
+    if (categoryId === 'seating') {
+      const seatingRequiredAnswer = answers['kit_seating_required'];
+      
+      // Check if "none" is selected (could be array for multi-select)
+      const hasNoSeating = Array.isArray(seatingRequiredAnswer)
+        ? seatingRequiredAnswer.includes('none')
+        : seatingRequiredAnswer === 'none';
+      
+      if (hasNoSeating) {
+        console.log('Skipping seating materials - No Seating Needed selected');
+        // Mark seating type question as "NA" if it hasn't been answered yet
+        // This ensures all seating-related responses are marked as NA
+        if (!answers['kit_seating_type']) {
+          state.jsonQuestionAnswers['kit_seating_type'] = 'NA';
+          // Save state if saveState function is provided
+          if (saveStateFn) {
+            saveStateFn(state);
+          }
+        }
+        return true;
+      }
+    }
+    
+    // Add other category-specific skip conditions here as needed
+    // Example patterns:
+    // - If a category has a "Not Applicable" option and it was selected
+    // - If conditional logic indicates the category shouldn't have materials
+    
+    return false;
   }
   
   // ============================================================================
@@ -3484,6 +3583,30 @@
       .idsq-text-input::placeholder {
         color: rgba(44, 44, 44, 0.5);
       }
+      .idsq-round-indicator {
+        font-size: 18px;
+        font-weight: 900;
+        color: rgba(44, 44, 44, 0.85);
+        text-align: center;
+        margin-bottom: 0.5rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+      .idsq-option-number {
+        font-size: 1.1rem;
+        font-weight: 900;
+        margin: 0.75rem 0 0.25rem 0;
+        color: var(--idsq-text);
+        text-align: center;
+      }
+      .idsq-option-or-similar {
+        font-size: 0.9rem;
+        font-weight: 500;
+        margin: 0;
+        color: rgba(54, 54, 54, 0.65);
+        text-align: center;
+        font-style: italic;
+      }
       .idsq-instruction {
         font-size: 0.95rem;
         font-weight: 500;
@@ -4324,6 +4447,40 @@
         color: #999999;
         font-size: 14px;
         font-weight: 500;
+      }
+      .idsq-confirmation-image-container {
+        max-width: 900px;
+        margin: 2rem auto;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1.5rem;
+      }
+      .idsq-confirmation-image-container .idsq-option-label {
+        padding: 0;
+        text-align: center;
+      }
+      .idsq-confirmation-image {
+        width: 100%;
+        height: 500px;
+        object-fit: cover;
+        display: block;
+        border-radius: 16px;
+        box-shadow: 0 8px 30px rgba(44, 44, 44, 0.15);
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        -webkit-user-drag: none;
+        -khtml-user-drag: none;
+        -moz-user-drag: none;
+        -o-user-drag: none;
+      }
+      @media (max-width: 640px) {
+        .idsq-confirmation-image {
+          height: 350px;
+        }
       }
       .idsq-option-label {
         padding: 1.25rem;
@@ -6842,6 +6999,131 @@
   }
 
   /**
+   * Renders confirmation page for category material selection
+   * @param {string} spaceId - Space ID
+   * @param {string} categoryId - Category ID
+   * @param {Object} config - Quiz config
+   * @param {HTMLElement} mount - Mount element
+   * @param {Object} state - Current state
+   * @param {Object} handlers - Event handlers
+   * @param {Function} saveStateFn - Function to save state
+   */
+  function renderCategoryMaterialConfirmation(spaceId, categoryId, config, mount, state, handlers, saveStateFn) {
+    const section = createElement('section', 'idsq-step');
+    
+    // Add Clara mini intro
+    const claraWrapper = createElement('div', 'idsq-clara-mini-wrapper');
+    const claraMini = createElement('img', 'idsq-clara-mini', {
+      src: config.copy.claraProfileUrl,
+      alt: 'Clara',
+      draggable: 'false',
+    });
+    claraMini.addEventListener('contextmenu', (e) => e.preventDefault());
+    const claraInfo = createElement('p', 'idsq-clara-info');
+    claraInfo.innerHTML = '<span class="idsq-clara-info-name">Clara</span> · Interior Design Expert';
+    claraWrapper.appendChild(claraMini);
+    claraWrapper.appendChild(claraInfo);
+    section.appendChild(claraWrapper);
+    
+    // Get category info from config
+    const categories = config.materialsBySpace[spaceId] || [];
+    const category = categories.find(cat => cat.id === categoryId);
+    
+    if (!category) {
+      // Category not found, proceed to next category
+      handlers.onContinueFromCategoryMaterials(spaceId, categoryId);
+      return;
+    }
+    
+    // Get category state
+    const categoryKey = `${spaceId}_${categoryId}`;
+    const categoryState = state.materialsSelections[categoryKey];
+    
+    if (!categoryState || !categoryState.finalSelection) {
+      // No final selection found, go back to material selection
+      categoryState.showConfirmation = false;
+      if (saveStateFn) saveStateFn(state);
+      renderCategoryMaterials(spaceId, categoryId, config, mount, state, handlers, saveStateFn);
+      return;
+    }
+    
+    const finalSelection = categoryState.finalSelection;
+    const spaceName = spaceId === 'bathroom' ? 'bathroom' : 
+                      spaceId === 'kitchen' ? 'kitchen' : 'space';
+    
+    // Title
+    const title = createElement('h2', 'idsq-title');
+    title.textContent = `Confirm Your ${spaceName.charAt(0).toUpperCase() + spaceName.slice(1)} ${category.name} Selection`;
+    section.appendChild(title);
+    
+    // Description
+    const description = createElement('p', 'idsq-description');
+    description.textContent = 'Please review your final selection. You can go back to change your choice if needed.';
+    section.appendChild(description);
+    
+    // Display the final selection - larger centered image without card styling
+    const imageContainer = createElement('div', 'idsq-confirmation-image-container');
+    
+    const image = createElement('img', 'idsq-confirmation-image idsq-image-placeholder', {
+      src: finalSelection.imageUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OTk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIE5vdCBTaG93bjwvdGV4dD48L3N2Zz4=',
+      alt: finalSelection.name,
+      loading: 'lazy',
+      draggable: 'false',
+    });
+    image.addEventListener('contextmenu', (e) => e.preventDefault());
+    image.addEventListener('error', function() {
+      this.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OTk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIE5vdCBTaG93bjwvdGV4dD48L3N2Zz4=';
+    });
+    
+    // Option label container (without title)
+    const labelContainer = createElement('div', 'idsq-option-label');
+    
+    // Option number
+    const optionNumber = createElement('h3', 'idsq-option-number');
+    optionNumber.textContent = `Option ${finalSelection._actualOptionNumber || 'Selected'}`;
+    labelContainer.appendChild(optionNumber);
+    
+    // "(Or Similar)" subtitle
+    const orSimilar = createElement('p', 'idsq-option-or-similar');
+    orSimilar.textContent = '(Or Similar)';
+    labelContainer.appendChild(orSimilar);
+    
+    imageContainer.appendChild(image);
+    imageContainer.appendChild(labelContainer);
+    section.appendChild(imageContainer);
+    
+    // Navigation
+    const navigation = createElement('div', 'idsq-step-navigation');
+    
+    // Previous button - go back to Step 3 to change selection
+    const backButton = createElement('button', 'idsq-button idsq-button-secondary');
+    backButton.textContent = 'Previous';
+    backButton.addEventListener('click', () => {
+      // Go back to Step 3 (round 3) to allow reselection
+      categoryState.showConfirmation = false;
+      categoryState.round = 3;
+      if (saveStateFn) saveStateFn(state);
+      renderCategoryMaterials(spaceId, categoryId, config, mount, state, handlers, saveStateFn);
+    });
+    navigation.appendChild(backButton);
+    
+    // Continue button - proceed to next category
+    const continueButton = createElement('button', 'idsq-button idsq-button-primary');
+    continueButton.textContent = 'Continue';
+    continueButton.addEventListener('click', () => {
+      // Mark confirmation as complete and proceed
+      categoryState.showConfirmation = false;
+      if (saveStateFn) saveStateFn(state);
+      handlers.onContinueFromCategoryMaterials(spaceId, categoryId);
+    });
+    navigation.appendChild(continueButton);
+    
+    section.appendChild(navigation);
+    
+    showSection(mount, section, handlers);
+  }
+
+  /**
    * Renders materials selection for a specific category within a space
    * @param {string} spaceId - Space ID
    * @param {string} categoryId - Category ID
@@ -6878,6 +7160,34 @@
       return;
     }
     
+    // Initialize round tracking for this category FIRST (before using categoryState)
+    const categoryKey = `${spaceId}_${categoryId}`;
+    if (!state.materialsSelections) state.materialsSelections = {};
+    if (!state.materialsSelections[categoryKey]) {
+      state.materialsSelections[categoryKey] = {
+        round: 1,
+        winners: [],
+        showConfirmation: false,
+      };
+    }
+    
+    const categoryState = state.materialsSelections[categoryKey];
+    
+    // Check if we should show confirmation page instead
+    if (categoryState.showConfirmation && categoryState.finalSelection) {
+      renderCategoryMaterialConfirmation(spaceId, categoryId, config, mount, state, handlers, saveStateFn);
+      return;
+    }
+    
+    // Log current round and selections for debugging
+    console.log('renderCategoryMaterials:', {
+      spaceId: String(spaceId),
+      categoryId: String(categoryId),
+      round: String(categoryState.round),
+      winnersCount: String(categoryState.winners ? categoryState.winners.length : 0),
+      winners: categoryState.winners ? categoryState.winners.map(w => ({ id: w.id, name: w.name })) : []
+    });
+    
     // Dynamic title based on space and category
     const spaceName = spaceId === 'bathroom' ? 'bathroom' : 
                       spaceId === 'kitchen' ? 'kitchen' : 'space';
@@ -6885,22 +7195,32 @@
     title.textContent = `What would you prefer for your ${spaceName} ${category.name.toLowerCase()}?`;
     section.appendChild(title);
     
-    // Initialize round tracking for this category
-    const categoryKey = `${spaceId}_${categoryId}`;
-    if (!state.materialsSelections) state.materialsSelections = {};
-    if (!state.materialsSelections[categoryKey]) {
-      state.materialsSelections[categoryKey] = {
-        round: 1,
-        winners: [],
-      };
-    }
+    // Description with instructions
+    const description = createElement('p', 'idsq-description');
+    description.textContent = 'Select the option that best matches your preference.';
+    section.appendChild(description);
     
-    const categoryState = state.materialsSelections[categoryKey];
+    // Selection instruction "(Select One Option)" in bold
+    const selectionInstruction = createElement('p', 'idsq-selection-instruction');
+    const instructionText = createElement('strong');
+    instructionText.textContent = '(Select One Option)';
+    selectionInstruction.appendChild(instructionText);
+    section.appendChild(selectionInstruction);
+    
+    // Step indicator (Step 1 of 3, Step 2 of 3, Step 3 of 3)
+    const stepIndicator = createElement('p', 'idsq-round-indicator');
+    const totalSteps = 3; // Always 3 steps for material selection
+    stepIndicator.textContent = `Step ${categoryState.round} of ${totalSteps}`;
+    section.appendChild(stepIndicator);
     
     // Round 3 shows the two winners from rounds 1 and 2
     let options;
+    let optionNumberOffset = 0; // For calculating option numbers across rounds
+    
     if (categoryState.round === 3) {
+      // Final round: show the two winners from rounds 1 and 2
       options = categoryState.winners.slice(0, 2);
+      // Winners already have _optionRange stored from when they were selected
     } else {
       // Generate placeholder options (no random images)
       options = generateMaterialOptions(categoryId, state.finalStyle?.styleId || 'modern', categoryState.round);
@@ -6909,6 +7229,11 @@
         ...opt,
         imageUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OTk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIE5vdCBTaG93bjwvdGV4dD48L3N2Zz4='
       }));
+      
+      // Calculate option number offset based on round
+      // Round 1: options 1-3 (offset 0)
+      // Round 2: options 4-6 (offset 3)
+      optionNumberOffset = (categoryState.round - 1) * 3;
     }
     
     // Images grid matching quiz format
@@ -6916,12 +7241,23 @@
     if (options.length === 2) {
       grid.classList.add('idsq-grid-two-items');
     }
-    options.forEach((option) => {
+    options.forEach((option, index) => {
       const card = createElement('button', 'idsq-option-card', {
         type: 'button',
       });
+      
+      // Calculate the actual option number for this option
+      const actualOptionNumber = categoryState.round === 3 
+        ? option._actualOptionNumber 
+        : optionNumberOffset + index + 1;
+      
       card.addEventListener('click', () => {
-        handlers.onSelectCategoryMaterial(spaceId, categoryId, option, categoryState.round);
+        // Pass the option with its number attached
+        const optionWithNumber = {
+          ...option,
+          _actualOptionNumber: actualOptionNumber
+        };
+        handlers.onSelectCategoryMaterial(spaceId, categoryId, optionWithNumber, categoryState.round);
       });
       
       const image = createElement('img', 'idsq-option-image idsq-image-placeholder', {
@@ -6936,8 +7272,33 @@
         this.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OTk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIE5vdCBTaG93bjwvdGV4dD48L3N2Zz4=';
       });
       
-      // No labels/captions - just images like the quiz
+      // Option label container
+      const labelContainer = createElement('div', 'idsq-option-label');
+      
+      // Option number (emphasized) - calculate based on round
+      const optionNumber = createElement('h3', 'idsq-option-number');
+      if (categoryState.round === 3) {
+        // Final round: show the actual option number that was selected in the previous rounds
+        const actualNum = option._actualOptionNumber;
+        if (actualNum) {
+          optionNumber.textContent = `Option ${actualNum}`;
+        } else {
+          // Fallback if option number wasn't stored
+          optionNumber.textContent = `Option ${option._optionRange || '1-3'}`;
+        }
+      } else {
+        // Round 1 or 2: show sequential option numbers (1-3 for round 1, 4-6 for round 2)
+        optionNumber.textContent = `Option ${optionNumberOffset + index + 1}`;
+      }
+      labelContainer.appendChild(optionNumber);
+      
+      // "(Or Similar)" subtitle
+      const orSimilar = createElement('p', 'idsq-option-or-similar');
+      orSimilar.textContent = '(Or Similar)';
+      labelContainer.appendChild(orSimilar);
+      
       card.appendChild(image);
+      card.appendChild(labelContainer);
       grid.appendChild(card);
     });
     section.appendChild(grid);
@@ -6945,15 +7306,13 @@
     // Navigation matching quiz format
     const navigation = createElement('div', 'idsq-step-navigation');
     
-    // Back button (only show if not on first round)
-    if (categoryState.round > 1) {
-      const backButton = createElement('button', 'idsq-button idsq-button-secondary');
-      backButton.textContent = 'Previous';
-      backButton.addEventListener('click', () => {
-        handlers.onGoBackCategoryMaterial(spaceId, categoryId);
-      });
-      navigation.appendChild(backButton);
-    }
+    // Previous button - always show to allow navigation back
+    const backButton = createElement('button', 'idsq-button idsq-button-secondary');
+    backButton.textContent = 'Previous';
+    backButton.addEventListener('click', () => {
+      handlers.onGoBackCategoryMaterial(spaceId, categoryId);
+    });
+    navigation.appendChild(backButton);
     
     section.appendChild(navigation);
     
@@ -7391,6 +7750,58 @@
       if (!savedState.spaceOrder) savedState.spaceOrder = [];
       if (!savedState.completedSpaces) savedState.completedSpaces = [];
       if (!savedState.jsonQuestionUrls) savedState.jsonQuestionUrls = {};
+      // IMPORTANT: Ensure completedCategories is properly initialized and not corrupted
+      // Only restore if it's a valid object structure, otherwise reset it
+      if (!savedState.completedCategories || typeof savedState.completedCategories !== 'object' || Array.isArray(savedState.completedCategories)) {
+        savedState.completedCategories = {};
+      }
+      // Validate that completedCategories[spaceId] is an array, not corrupted data
+      for (const spaceId in savedState.completedCategories) {
+        if (!Array.isArray(savedState.completedCategories[spaceId])) {
+          savedState.completedCategories[spaceId] = [];
+        }
+      }
+      // CRITICAL: Validate completedCategories against actual materialsSelections
+      // If completedCategories has more entries than materialsSelections with finalSelection,
+      // it's corrupted and should be rebuilt from materialsSelections
+      if (savedState.materialsSelections && typeof savedState.materialsSelections === 'object') {
+        for (const spaceId in savedState.completedCategories) {
+          const completed = savedState.completedCategories[spaceId] || [];
+          // Count how many categories actually have completed materials selections
+          let actualCompletedCount = 0;
+          for (const categoryKey in savedState.materialsSelections) {
+            const [catSpaceId, categoryId] = categoryKey.split('_');
+            if (catSpaceId === spaceId) {
+              const categoryState = savedState.materialsSelections[categoryKey];
+              if (categoryState && categoryState.finalSelection && !categoryState.showConfirmation) {
+                actualCompletedCount++;
+              }
+            }
+          }
+          // If completedCategories has way more entries than actual completed materials, it's corrupted
+          // Reset it and rebuild from materialsSelections
+          if (completed.length > actualCompletedCount + 2) { // Allow 2 extra for safety margin
+            console.warn('Detected corrupted completedCategories, rebuilding from materialsSelections:', {
+              spaceId: String(spaceId),
+              completedCount: String(completed.length),
+              actualCompletedCount: String(actualCompletedCount)
+            });
+            // Rebuild from materialsSelections
+            savedState.completedCategories[spaceId] = [];
+            for (const categoryKey in savedState.materialsSelections) {
+              const [catSpaceId, categoryId] = categoryKey.split('_');
+              if (catSpaceId === spaceId) {
+                const categoryState = savedState.materialsSelections[categoryKey];
+                if (categoryState && categoryState.finalSelection && !categoryState.showConfirmation) {
+                  if (!savedState.completedCategories[spaceId].includes(categoryId)) {
+                    savedState.completedCategories[spaceId].push(categoryId);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
     
     // If state was loaded but URL has new invitation params, update them
@@ -8004,6 +8415,24 @@
         }
       },
       onCategoryQuestionsComplete(spaceId, categoryId) {
+        // Category questions completed, check if materials should be shown for this category
+        // Some categories may be marked as "Not Applicable" and should skip materials
+        
+        // Check if this category should be skipped based on answers
+        // For example, if crown_moldings has "Not Applicable" selected, skip materials
+        const shouldSkipMaterials = shouldSkipCategoryMaterials(spaceId, categoryId, state, config, saveState);
+        
+        if (shouldSkipMaterials) {
+          console.log('Skipping materials selection for category:', {
+            spaceId: String(spaceId),
+            categoryId: String(categoryId),
+            reason: 'Category marked as Not Applicable or conditional logic indicates skip'
+          });
+          // Skip materials and go directly to next category
+          handlers.onContinueFromCategoryMaterials(spaceId, categoryId);
+          return;
+        }
+        
         // Category questions completed, route to materials selection for this category
         state.currentFlow = 'category-materials';
         state.currentSpace = spaceId;
@@ -8013,17 +8442,48 @@
       },
       onContinueFromCategoryMaterials(spaceId, categoryId) {
         // Materials selection completed for a category, find next category's questions
-        // Track completed categories
+        // Track completed categories - ONLY mark the specific category that was just completed
         if (!state.completedCategories) state.completedCategories = {};
         if (!state.completedCategories[spaceId]) state.completedCategories[spaceId] = [];
-        if (!state.completedCategories[spaceId].includes(categoryId)) {
-          state.completedCategories[spaceId].push(categoryId);
+        
+        // CRITICAL: Only add the category that was just completed, don't add all categories
+        // Validate that categoryId is a string and not an array
+        const categoryToMark = Array.isArray(categoryId) ? categoryId[0] : categoryId;
+        if (categoryToMark && !state.completedCategories[spaceId].includes(categoryToMark)) {
+          state.completedCategories[spaceId].push(categoryToMark);
+          console.log('Marking category as completed:', {
+            spaceId: String(spaceId),
+            categoryId: String(categoryToMark),
+            completedCategoriesBefore: JSON.stringify([...state.completedCategories[spaceId]]),
+            completedCategoriesAfter: JSON.stringify(state.completedCategories[spaceId])
+          });
+        } else {
+          console.warn('Category already marked as completed or invalid:', {
+            spaceId: String(spaceId),
+            categoryId: String(categoryId),
+            categoryToMark: String(categoryToMark),
+            isArray: Array.isArray(categoryId),
+            alreadyCompleted: state.completedCategories[spaceId].includes(categoryToMark)
+          });
         }
+        
+        console.log('onContinueFromCategoryMaterials called:', {
+          spaceId: String(spaceId),
+          categoryId: String(categoryId),
+          categoryToMark: String(categoryToMark),
+          completedCategories: JSON.stringify(state.completedCategories[spaceId] || [])
+        });
         
         // Load questions to find next category
         const allQuestions = loadSpaceQuestions(spaceId);
         const sectionGateId = `section_gate_${normalizeSpaceId(spaceId)}`;
         const selectedCategoriesForSpace = (state.selectedCategories || {})[sectionGateId] || [];
+        
+        console.log('Finding next category:', {
+          spaceId: String(spaceId),
+          selectedCategoriesForSpace: JSON.stringify(selectedCategoriesForSpace),
+          completedCategories: JSON.stringify(state.completedCategories[spaceId] || [])
+        });
         
         // Build context for filtering
         const context = {
@@ -8058,26 +8518,103 @@
           questionsByCategory[cat].push({ question: q, index: idx });
         });
         
+        console.log('Questions by category:', {
+          categoriesWithQuestions: Object.keys(questionsByCategory),
+          questionsByCategory: Object.keys(questionsByCategory).reduce((acc, cat) => {
+            acc[cat] = questionsByCategory[cat].length;
+            return acc;
+          }, {})
+        });
+        
         // Find next uncompleted category
+        // IMPORTANT: Check categories in the order they appear in selectedCategoriesForSpace
+        // to maintain the correct flow
         const completedCategories = state.completedCategories[spaceId] || [];
-        const nextCategory = selectedCategoriesForSpace.find(cat => 
-          !completedCategories.includes(cat) && questionsByCategory[cat]
-        );
+        let nextCategory = null;
+        
+        console.log('=== SEARCHING FOR NEXT CATEGORY ===');
+        console.log('Completed categories:', JSON.stringify(completedCategories));
+        console.log('Selected categories for space:', JSON.stringify(selectedCategoriesForSpace));
+        console.log('Categories with questions:', Object.keys(questionsByCategory));
+        console.log('Materials configured for space:', config.materialsBySpace[spaceId]?.map(m => m.id) || []);
+        
+        // Iterate through selectedCategoriesForSpace in order to find the first uncompleted one
+        for (const cat of selectedCategoriesForSpace) {
+          const isCompleted = completedCategories.includes(cat);
+          const hasQuestions = questionsByCategory[cat] && questionsByCategory[cat].length > 0;
+          const hasMaterials = config.materialsBySpace[spaceId]?.some(m => m.id === cat);
+          
+          console.log(`Checking category "${cat}":`, {
+            isCompleted: String(isCompleted),
+            hasQuestions: String(hasQuestions),
+            questionsCount: String(questionsByCategory[cat]?.length || 0),
+            hasMaterials: String(hasMaterials),
+            willSelect: String(!isCompleted && (hasQuestions || hasMaterials))
+          });
+          
+          if (!isCompleted) {
+            // Check if this category has questions OR if it has materials configured
+            if (hasQuestions || hasMaterials) {
+              nextCategory = cat;
+              console.log(`✓ Selected "${cat}" as next category`);
+              break;
+            } else {
+              console.log(`✗ Skipping "${cat}" - no questions and no materials`);
+            }
+          } else {
+            console.log(`✗ Skipping "${cat}" - already completed`);
+          }
+        }
+        
+        console.log('=== NEXT CATEGORY RESULT ===');
+        console.log('Next category found:', String(nextCategory || 'null'));
+        if (nextCategory) {
+          console.log('Next category details:', {
+            hasQuestions: String(questionsByCategory[nextCategory]?.length > 0),
+            questionsCount: String(questionsByCategory[nextCategory]?.length || 0),
+            hasMaterials: String(config.materialsBySpace[spaceId]?.some(m => m.id === nextCategory))
+          });
+        }
         
         if (nextCategory) {
-          // Route to next category's first question
+          // Check if this category has questions - if so, route to questions first
           const nextCategoryQuestions = questionsByCategory[nextCategory];
           if (nextCategoryQuestions && nextCategoryQuestions.length > 0) {
+            // Route to next category's first question
             const firstQuestionIndex = nextCategoryQuestions[0].index;
+            console.log('Routing to next category questions:', {
+              category: String(nextCategory),
+              questionIndex: String(firstQuestionIndex)
+            });
             state.currentFlow = 'space-questions';
+            state.currentSpace = spaceId;
+            state.currentSpaceQuestionIndex = state.currentSpaceQuestionIndex || {};
+            state.currentSpaceQuestionIndex[spaceId] = firstQuestionIndex;
             saveState(state);
             renderSpaceQuestions(spaceId, firstQuestionIndex, config, mount, state, handlers, saveState);
           } else {
-            // No questions for next category, move to next space
-            handlers.onContinueFromSpaceQuestions(spaceId);
+            // Category has no questions but has materials - route directly to materials
+            // This shouldn't happen with current structure, but handle gracefully
+            console.log('Category has no questions, checking materials:', {
+              category: String(nextCategory),
+              hasMaterials: config.materialsBySpace[spaceId]?.some(m => m.id === nextCategory)
+            });
+            if (config.materialsBySpace[spaceId]?.some(m => m.id === nextCategory)) {
+              state.currentFlow = 'category-materials';
+              state.currentSpace = spaceId;
+              state.currentCategory = nextCategory;
+              saveState(state);
+              renderCategoryMaterials(spaceId, nextCategory, config, mount, state, handlers, saveState);
+            } else {
+              // No questions and no materials - skip to next category
+              console.warn('Category has no questions and no materials, skipping:', String(nextCategory));
+              // Recursively call to find next category
+              handlers.onContinueFromCategoryMaterials(spaceId, nextCategory);
+            }
           }
         } else {
           // All categories completed for this space, move to next space
+          console.log('All categories completed for space, moving to next space:', String(spaceId));
           handlers.onContinueFromSpaceQuestions(spaceId);
         }
       },
@@ -8159,7 +8696,61 @@
           };
         }
         const categoryState = state.materialsSelections[categoryKey];
-        categoryState.winners.push(option);
+        
+        // Use the actual option number that was calculated at render time (passed from click handler)
+        // This ensures accuracy because it was calculated when we knew the exact order of displayed options
+        let actualOptionNumber = option._actualOptionNumber;
+        
+        // Only recalculate if not provided (for backward compatibility or edge cases)
+        if (!actualOptionNumber && (roundNumber === 1 || roundNumber === 2)) {
+          // Fallback: calculate based on round and option index
+          const allOptions = generateMaterialOptions(categoryId, state.finalStyle?.styleId || 'modern', roundNumber);
+          const optionIndex = allOptions.findIndex(opt => opt.id === option.id);
+          if (optionIndex >= 0) {
+            // Round 1: options 1-3 (offset 0), Round 2: options 4-6 (offset 3)
+            const optionNumberOffset = (roundNumber - 1) * 3;
+            actualOptionNumber = optionNumberOffset + optionIndex + 1;
+          }
+        }
+        
+        // Log the option number being stored for debugging
+        console.log('Storing material selection with option number:', {
+          spaceId: String(spaceId),
+          categoryId: String(categoryId),
+          roundNumber: String(roundNumber),
+          optionId: String(option.id),
+          optionName: String(option.name),
+          actualOptionNumber: String(actualOptionNumber),
+          winnersLength: String(categoryState.winners.length),
+          replacingAtIndex: categoryState.winners.length >= roundNumber ? String(roundNumber - 1) : 'pushing'
+        });
+        
+        // Store the option with round information and actual option number for display in final round
+        const winnerWithRound = {
+          ...option,
+          _selectedRound: roundNumber,
+          _optionRange: roundNumber === 1 ? '1-3' : roundNumber === 2 ? '4-6' : null,
+          _actualOptionNumber: actualOptionNumber
+        };
+        
+        // If we're replacing a previous selection (going back), replace it instead of pushing
+        if (categoryState.winners.length >= roundNumber) {
+          categoryState.winners[roundNumber - 1] = winnerWithRound;
+        } else {
+          categoryState.winners.push(winnerWithRound);
+        }
+        
+        // Log selection for debugging
+        console.log('Material selected:', {
+          spaceId: String(spaceId),
+          categoryId: String(categoryId),
+          optionId: String(option.id),
+          optionName: String(option.name),
+          roundNumber: String(roundNumber),
+          winnersCount: String(categoryState.winners.length),
+          nextRound: String(roundNumber < 3 ? roundNumber + 1 : 'complete')
+        });
+        
         saveState(state);
         
         if (roundNumber === 1 || roundNumber === 2) {
@@ -8168,8 +8759,35 @@
           saveState(state);
           renderCategoryMaterials(spaceId, categoryId, config, mount, state, handlers, saveState);
         } else {
-          // Round 3: final selection made, move to next category
-          handlers.onContinueFromCategoryMaterials(spaceId, categoryId);
+          // Round 3: final selection made
+          // Mark the selected option as final and the other as secondary backup
+          const finalSelection = option;
+          const otherWinner = categoryState.winners.find(w => w.id !== option.id);
+          
+          // Store final and secondary selections
+          categoryState.finalSelection = finalSelection;
+          categoryState.secondaryBackup = otherWinner;
+          
+          // Log final selection and secondary backup
+          console.log('Final material selection:', {
+            spaceId: String(spaceId),
+            categoryId: String(categoryId),
+            finalSelection: {
+              optionId: String(finalSelection.id),
+              optionName: String(finalSelection.name),
+              optionNumber: String(finalSelection._actualOptionNumber || 'unknown')
+            },
+            secondaryBackup: otherWinner ? {
+              optionId: String(otherWinner.id),
+              optionName: String(otherWinner.name),
+              optionNumber: String(otherWinner._actualOptionNumber || 'unknown')
+            } : null
+          });
+          
+          // Set confirmation state and show confirmation page
+          categoryState.showConfirmation = true;
+          saveState(state);
+          renderCategoryMaterialConfirmation(spaceId, categoryId, config, mount, state, handlers, saveState);
         }
       },
       onGoBackCategoryMaterial(spaceId, categoryId) {
@@ -8180,7 +8798,14 @@
         if (categoryState && categoryState.round > 1) {
           // Go back to previous round in same category
           categoryState.round -= 1;
-          categoryState.winners.pop(); // Remove last selection
+          // Remove selections from the current round onwards (not just pop, but clear future rounds)
+          if (categoryState.winners.length > categoryState.round) {
+            categoryState.winners = categoryState.winners.slice(0, categoryState.round);
+          }
+          // Clear final selection and confirmation state when going back
+          categoryState.finalSelection = null;
+          categoryState.secondaryBackup = null;
+          categoryState.showConfirmation = false;
           saveState(state);
           renderCategoryMaterials(spaceId, categoryId, config, mount, state, handlers, saveState);
         } else {
@@ -8336,6 +8961,27 @@
           renderSpaceQuestions(spaceId, questionIndex, config, mount, state, handlers, saveState);
         } else {
           renderSectionGates(config, mount, state, handlers, saveState);
+        }
+      } else if (flow === 'category-materials') {
+        // Restore category materials selection screen
+        const spaceId = state.currentSpace;
+        const categoryId = state.currentCategory;
+        if (spaceId && categoryId) {
+          console.log('Restoring category materials:', {
+            spaceId: String(spaceId),
+            categoryId: String(categoryId),
+            materialsSelections: state.materialsSelections ? Object.keys(state.materialsSelections) : []
+          });
+          renderCategoryMaterials(spaceId, categoryId, config, mount, state, handlers, saveState);
+        } else {
+          // Fallback: go back to space questions
+          const fallbackSpaceId = state.currentSpace || (state.spaceOrder && state.spaceOrder[0]);
+          const fallbackQuestionIndex = state.currentSpaceQuestionIndex && fallbackSpaceId ? (state.currentSpaceQuestionIndex[fallbackSpaceId] || 0) : 0;
+          if (fallbackSpaceId) {
+            renderSpaceQuestions(fallbackSpaceId, fallbackQuestionIndex, config, mount, state, handlers, saveState);
+          } else {
+            renderSectionGates(config, mount, state, handlers, saveState);
+          }
         }
       } else if (flow === 'pathway-coming-soon') {
         renderPathwayComingSoon(config, mount, state, handlers, saveState);

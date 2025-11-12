@@ -15,7 +15,7 @@ const LIVING_ROOM_DEEPDIVE = [
         id: "section_gate_living-room",
         type: "multi",
         prompt: "Which Living Room categories do you want to decide now?",
-        description: "Select the items you want to work through in this living room. **(Select all that apply.)**",
+        description: "Select the items you want to work through in this living room. **(Select all that apply)**",
         options: [
           { id: "flooring", name: "Flooring" },
           { id: "baseboards", name: "Baseboards" },
@@ -48,7 +48,7 @@ const LIVING_ROOM_DEEPDIVE = [
       {
         id: "lr_floor_families",
         type: "multi",
-        prompt: "Which living room flooring materials do you prefer? (Select all that apply.)",
+        prompt: "Which living room flooring materials do you prefer? (Select all that apply)",
         description: "Choose one or more flooring families you are open to using in the living room.",
         options: [
           { id: "eng_wood", name: "Engineered Wood", description: "Stable wood wear layer on plywood core; suitable for most climates." },
@@ -63,7 +63,7 @@ const LIVING_ROOM_DEEPDIVE = [
       {
         id: "lr_floor_specs",
         type: "multi",
-        prompt: "Which flooring performance or pattern traits matter to you? (Select all that apply.)",
+        prompt: "Which flooring performance or pattern traits matter to you? (Select all that apply)",
         description: "Select any preferred specifications to narrow suitable options.",
         options: [
           { id: "wide_plank_7", name: "Wide Plank (≥7″)", description: "Visually expansive look; common with engineered wood and LVP." },
@@ -182,7 +182,7 @@ const LIVING_ROOM_DEEPDIVE = [
       {
         id: "lr_ceiling_features",
         type: "multi",
-        prompt: "Would you like any special ceiling features? (Select all that apply.)",
+        prompt: "Would you like any special ceiling features? (Select all that apply)",
         description: "Choose any feature details you want to include.",
         options: [
           { id: "coffered", name: "Coffered", description: "Grid of recessed panels to add dimensionality." },
@@ -217,7 +217,7 @@ const LIVING_ROOM_DEEPDIVE = [
       {
         id: "lr_wall_types",
         type: "multi",
-        prompt: "Which wall finish types are you considering? (Select all that apply.)",
+        prompt: "Which wall finish types are you considering? (Select all that apply)",
         description: "Choose one or more wall finish categories.",
         options: [
           { id: "paint", name: "Paint", description: "Standard painted surfaces; broad color range and easy maintenance." },
@@ -252,7 +252,7 @@ const LIVING_ROOM_DEEPDIVE = [
       {
         id: "lr_lighting_layers",
         type: "multi",
-        prompt: "Which layers of lighting should the living room include? (Select all that apply.)",
+        prompt: "Which layers of lighting should the living room include? (Select all that apply)",
         description: "Select lighting layers to balance ambiance, tasks, and highlights.",
         options: [
           { id: "ambient", name: "Ambient", description: "General illumination (e.g., recessed or ceiling fixtures)." },
@@ -276,7 +276,7 @@ const LIVING_ROOM_DEEPDIVE = [
       {
         id: "lr_lighting_requirements",
         type: "multi",
-        prompt: "Do you have any specific lighting requirements? (Select all that apply.)",
+        prompt: "Do you have any specific lighting requirements? (Select all that apply)",
         description: "Choose any must-have lighting requirements to guide product filtering.",
         options: [
           { id: "dimming", name: "Dimming", description: "Smooth dimming to set mood and reduce glare." },
@@ -298,7 +298,7 @@ const LIVING_ROOM_DEEPDIVE = [
       {
         id: "lr_seating_types",
         type: "multi",
-        prompt: "Which seating types do you want in the living room? (Select all that apply.)",
+        prompt: "Which seating types do you want in the living room? (Select all that apply)",
         description: "Pick the seating mix that fits your layout and lifestyle.",
         options: [
           { id: "sofa", name: "Sofa", description: "Standard sofa footprint for most living rooms." },
@@ -326,7 +326,7 @@ const LIVING_ROOM_DEEPDIVE = [
       {
         id: "lr_seating_specs",
         type: "multi",
-        prompt: "Which upholstery or performance features are important? (Select all that apply.)",
+        prompt: "Which upholstery or performance features are important? (Select all that apply)",
         description: "Select key performance traits to filter upholstery options.",
         options: [
           { id: "performance_fabric", name: "Performance Fabric", description: "Stain and abrasion resistance for longevity." },
@@ -350,7 +350,7 @@ const LIVING_ROOM_DEEPDIVE = [
       {
         id: "lr_furniture_pieces",
         type: "multi",
-        prompt: "Which core furniture pieces should we plan? (Select all that apply.)",
+        prompt: "Which core furniture pieces should we plan? (Select all that apply)",
         description: "Select the key pieces to include in the living room plan.",
         options: [
           { id: "coffee_table", name: "Coffee Table", description: "Center table sized to sofa/sectional proportions." },
@@ -365,7 +365,7 @@ const LIVING_ROOM_DEEPDIVE = [
       {
         id: "lr_furniture_materials",
         type: "multi",
-        prompt: "Which furniture materials/finishes do you prefer? (Select all that apply.)",
+        prompt: "Which furniture materials/finishes do you prefer? (Select all that apply)",
         description: "Select material families to guide furniture recommendations.",
         options: [
           { id: "wood_light", name: "Wood: Light", description: "Lighter oak, ash, or maple tones." },
@@ -390,7 +390,7 @@ const LIVING_ROOM_DEEPDIVE = [
       {
         id: "lr_colors",
         type: "multi",
-        prompt: "Which colors should we incorporate into this space? (Select all that apply.)",
+        prompt: "Which colors should we incorporate into this space? (Select all that apply)",
         description: "Select neutral families and accent directions to guide palette curation.",
         options: [
           { id: "neutrals_warm", name: "Neutrals: Warm", description: "Creams, beiges, and warm greige tones." },
@@ -444,7 +444,7 @@ const LIVING_ROOM_DEEPDIVE = [
       {
         id: "lr_rug_material",
         type: "multi",
-        prompt: "Which rug materials or constructions do you prefer? (Select all that apply.)",
+        prompt: "Which rug materials or constructions do you prefer? (Select all that apply)",
         description: "Select preferred rug families to guide selections.",
         options: [
           { id: "wool", name: "Wool", description: "Resilient natural fiber; durable and warm." },
@@ -470,7 +470,7 @@ const LIVING_ROOM_DEEPDIVE = [
       {
         id: "lr_wt_types",
         type: "multi",
-        prompt: "Which window treatments do you prefer? (Select all that apply.)",
+        prompt: "Which window treatments do you prefer? (Select all that apply)",
         description: "Choose the treatment types to plan for this room.",
         options: [
           { id: "drapery", name: "Drapery", description: "Layered panels for softness and light control." },
@@ -484,7 +484,7 @@ const LIVING_ROOM_DEEPDIVE = [
       {
         id: "lr_wt_requirements",
         type: "multi",
-        prompt: "Which window treatment requirements apply? (Select all that apply.)",
+        prompt: "Which window treatment requirements apply? (Select all that apply)",
         description: "Select specific needs to filter hardware and fabric options.",
         options: [
           { id: "blackout", name: "Blackout", description: "Maximum light control and privacy." },
@@ -578,7 +578,7 @@ const LIVING_ROOM_DEEPDIVE = [
       {
         id: "lr_av_concealment",
         type: "multi",
-        prompt: "Which concealment or cable management options do you prefer? (Select all that apply.)",
+        prompt: "Which concealment or cable management options do you prefer? (Select all that apply)",
         description: "Select concealment and management options to keep the room visually tidy.",
         options: [
           { id: "in_wall_power_lowvoltage", name: "In-Wall Power + Low-Voltage", description: "Code-compliant wiring pass-throughs behind the display." },
@@ -602,7 +602,7 @@ const LIVING_ROOM_DEEPDIVE = [
       {
         id: "lr_av_sources",
         type: "multi",
-        prompt: "Which sources should the system support? (Select all that apply.)",
+        prompt: "Which sources should the system support? (Select all that apply)",
         description: "Select the media sources you plan to use.",
         options: [
           { id: "streaming_apps", name: "Streaming Apps", description: "Built-in or external streaming platforms." },
@@ -624,7 +624,7 @@ const LIVING_ROOM_DEEPDIVE = [
       {
         id: "lr_storage_types",
         type: "multi",
-        prompt: "Which storage types do you want? (Select all that apply.)",
+        prompt: "Which storage types do you want? (Select all that apply)",
         description: "Choose the storage solutions to support daily use.",
         options: [
           { id: "closed_cabinetry", name: "Closed Cabinetry", description: "Concealed storage for clutter-free visuals." },
@@ -637,7 +637,7 @@ const LIVING_ROOM_DEEPDIVE = [
       {
         id: "lr_storage_items",
         type: "multi",
-        prompt: "What do you plan to store or display? (Select all that apply.)",
+        prompt: "What do you plan to store or display? (Select all that apply)",
         description: "Select primary items to right-size storage capacity.",
         options: [
           { id: "books", name: "Books", description: "Shelving depth and shelf count to suit volumes." },
@@ -660,7 +660,7 @@ const LIVING_ROOM_DEEPDIVE = [
       {
         id: "lr_art_plan",
         type: "multi",
-        prompt: "Which art and décor directions should we plan? (Select all that apply.)",
+        prompt: "Which art and décor directions should we plan? (Select all that apply)",
         description: "Select the key artwork and styling strategies to consider.",
         options: [
           { id: "feature_existing", name: "Feature Existing Art", description: "Plan placement and lighting for your current collection." },
@@ -684,7 +684,7 @@ const LIVING_ROOM_DEEPDIVE = [
       {
         id: "lr_accent_features",
         type: "multi",
-        prompt: "Which accent features interest you? (Select all that apply.)",
+        prompt: "Which accent features interest you? (Select all that apply)",
         description: "Choose architectural accents to elevate the space.",
         options: [
           { id: "feature_plaster", name: "Feature Wall: Plaster/Limewash", description: "Soft, luminous finish for focal surfaces." },
@@ -720,7 +720,7 @@ const LIVING_ROOM_DEEPDIVE = [
       {
         id: "lr_fireplace_surround",
         type: "multi",
-        prompt: "Which surround materials do you prefer for the fireplace? (Select all that apply.)",
+        prompt: "Which surround materials do you prefer for the fireplace? (Select all that apply)",
         description: "Select surround options to coordinate with floors and built-ins.",
         options: [
           { id: "stone", name: "Stone", description: "Durable, timeless surround with natural variation." },
