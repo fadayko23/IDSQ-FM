@@ -1429,7 +1429,7 @@
    * @param {HTMLElement} mount - Mount element
    * @param {Object} state - Current state
    */
-  async function renderProgressionTracker(config, mount, state) {
+  async function renderProgressionTracker(config, mount, state, handlers, saveStateFn) {
     // Helper function to get space name
     const getSpaceName = (spaceId) => {
       // Handle special cases
@@ -1534,6 +1534,31 @@
       return section;
     };
 
+    // Helper function to create skip/alert icon for NA answers
+    const createSkipIcon = () => {
+      const skipIcon = createElement('div', 'idsq-card-checkmark');
+      skipIcon.innerHTML = `
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="10" fill="#363636" opacity="0.1"/>
+          <path d="M12 8V12M12 16H12.01" stroke="#363636" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="12" cy="12" r="9" stroke="#363636" stroke-width="1.5"/>
+        </svg>
+      `;
+      skipIcon.style.cssText = `
+        position: relative;
+        width: 24px;
+        height: 24px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        top: 7px;
+        right: 4px;
+        z-index: 10;
+      `;
+      return skipIcon;
+    };
+    
     // Helper function to create checkmark icon (blue like card checkmark)
     const createCheckmarkIcon = () => {
       const checkmark = createElement('div', 'idsq-card-checkmark');
@@ -1773,11 +1798,16 @@
     visibleDesignSpecificsQuestions.forEach((question, index) => {
       const answer = jsonQuestionAnswers[question.id];
       const isCurrent = question.id === currentDesignSpecificsQuestionId;
-      const hasAnswer = answer !== undefined && answer !== null && answer !== '' && answer !== 'NA';
+      const isSkipped = answer === 'NA' || answer === 'na';
+      const hasAnswer = answer !== undefined && answer !== null && answer !== '' && !isSkipped;
       
-      // Show question if it has an answer OR if it's the current question
-      if (hasAnswer || isCurrent) {
-        if (hasAnswer) {
+      // Determine if this question comes after the current question
+      const isAfterCurrent = currentQuestionIndex !== null && index > currentQuestionIndex;
+      
+      // Show question if it has an answer, is skipped, OR if it's the current question
+      // BUT exclude questions that come after the current question (they'll be shown in upcoming section)
+      if ((hasAnswer || isSkipped || isCurrent) && !isAfterCurrent) {
+        if (hasAnswer || isSkipped) {
           hasDesignSpecificsAnswers = true;
         }
         
@@ -1788,7 +1818,9 @@
         
         // Format answer based on question type
         let answerText = '';
-        if (hasAnswer) {
+        if (isSkipped) {
+          answerText = 'NA';
+        } else if (hasAnswer) {
           if (Array.isArray(answer)) {
             // For multi-select, try to get option names
             answerText = answer.map(ans => {
@@ -1822,12 +1854,48 @@
           background: ${isCurrent ? 'rgba(0, 107, 234, 0.08)' : 'rgba(54,54,54,0.03)'};
           border-radius: 8px;
           border: ${isCurrent ? '2px solid #006bea' : 'none'};
+          cursor: ${isCurrent ? 'default' : 'pointer'};
+          transition: background 0.2s ease;
         `;
         
-        // Only show checkmark if answered
+        // Add hover effect for clickable questions
+        if (!isCurrent) {
+          qaItem.addEventListener('mouseenter', () => {
+            qaItem.style.background = 'rgba(54,54,54,0.06)';
+          });
+          qaItem.addEventListener('mouseleave', () => {
+            qaItem.style.background = 'rgba(54,54,54,0.03)';
+          });
+          
+          // Add click handler to navigate to question
+          qaItem.addEventListener('click', () => {
+            // Close the progress tracker
+            overlay.remove();
+            
+            // Navigate to the question
+            if (state.currentFlow === 'project-type' && handlers && saveStateFn) {
+              // Find the question index in filtered questions
+              const questionIndex = visibleDesignSpecificsQuestions.findIndex(q => q.id === question.id);
+              if (questionIndex >= 0) {
+                state.jsonQuestionIndex = questionIndex;
+                saveStateFn(state);
+                // Re-render the global questions at this index
+                const designSpecificsQuestions = window.DESIGN_SPECIFICS_QUESTIONS || window.GLOBAL_QUESTIONS || [];
+                if (designSpecificsQuestions.length > 0 && typeof renderGlobalQuestions === 'function') {
+                  renderGlobalQuestions(designSpecificsQuestions, questionIndex, config, mount, state, handlers, saveStateFn);
+                }
+              }
+            }
+          });
+        }
+        
+        // Show checkmark if answered, skip icon if skipped
         if (hasAnswer) {
           const qaCheckmark = createCheckmarkIcon();
           qaItem.appendChild(qaCheckmark);
+        } else if (isSkipped) {
+          const qaSkip = createSkipIcon();
+          qaItem.appendChild(qaSkip);
         }
         
         const qaInfo = createElement('div');
@@ -1852,8 +1920,9 @@
         aValue.textContent = answerText;
         aValue.style.cssText = `
           font-size: 0.85rem;
-          color: ${isCurrent ? '#006bea' : 'rgba(54,54,54,0.6)'};
+          color: ${isCurrent ? '#006bea' : isSkipped ? '#363636' : 'rgba(54,54,54,0.6)'};
           font-weight: ${isCurrent ? '600' : '400'};
+          font-style: ${isSkipped ? 'italic' : 'normal'};
         `;
         
         qaInfo.appendChild(qLabel);
@@ -1877,6 +1946,17 @@
     
     // Add upcoming questions section after current question
     if (currentQuestionIndex !== null && currentQuestionIndex < visibleDesignSpecificsQuestions.length - 1) {
+      // Count truly upcoming questions (not yet answered)
+      let trulyUpcomingCount = 0;
+      for (let i = currentQuestionIndex + 1; i < visibleDesignSpecificsQuestions.length; i++) {
+        const q = visibleDesignSpecificsQuestions[i];
+        const answer = jsonQuestionAnswers[q.id];
+        const isSkipped = answer === 'NA' || answer === 'na';
+        const hasAnswer = answer !== undefined && answer !== null && answer !== '' && !isSkipped;
+        if (!hasAnswer && !isSkipped) {
+          trulyUpcomingCount++;
+        }
+      }
       const upcomingCount = visibleDesignSpecificsQuestions.length - currentQuestionIndex - 1;
       
       // Create collapsible section for upcoming questions
@@ -1892,6 +1972,34 @@
         const nextIndex = currentQuestionIndex + i;
         if (nextIndex < visibleDesignSpecificsQuestions.length) {
           const nextQuestion = visibleDesignSpecificsQuestions[nextIndex];
+          const answer = jsonQuestionAnswers[nextQuestion.id];
+          const isSkipped = answer === 'NA' || answer === 'na';
+          const hasAnswer = answer !== undefined && answer !== null && answer !== '' && !isSkipped;
+          
+          // Format answer if it exists
+          let answerText = '';
+          if (isSkipped) {
+            answerText = 'NA';
+          } else if (hasAnswer) {
+            if (Array.isArray(answer)) {
+              answerText = answer.map(ans => {
+                if (nextQuestion.options) {
+                  const option = nextQuestion.options.find(opt => opt.id === ans);
+                  return option ? option.name : ans;
+                }
+                return ans;
+              }).join(', ');
+            } else {
+              if (nextQuestion.options) {
+                const option = nextQuestion.options.find(opt => opt.id === answer);
+                answerText = option ? option.name : String(answer);
+              } else {
+                answerText = String(answer);
+              }
+            }
+          } else {
+            answerText = 'Upcoming';
+          }
           
           const upcomingItem = createElement('div', 'idsq-progress-info-item');
           upcomingItem.style.cssText = `
@@ -1902,15 +2010,55 @@
             padding: 0.75rem;
             background: rgba(54,54,54,0.03);
             border-radius: 8px;
+            cursor: ${hasAnswer || isSkipped ? 'pointer' : 'default'};
+            transition: background 0.2s ease;
           `;
           
-          // Empty space where checkmark would be (to align with completed questions)
-          const emptySpace = createElement('div');
-          emptySpace.style.cssText = `
-            width: 24px;
-            height: 24px;
-            flex-shrink: 0;
-          `;
+          // Add hover effect for clickable questions
+          if (hasAnswer || isSkipped) {
+            upcomingItem.addEventListener('mouseenter', () => {
+              upcomingItem.style.background = 'rgba(54,54,54,0.06)';
+            });
+            upcomingItem.addEventListener('mouseleave', () => {
+              upcomingItem.style.background = 'rgba(54,54,54,0.03)';
+            });
+            
+            // Add click handler to navigate to question
+            upcomingItem.addEventListener('click', () => {
+              // Close the progress tracker
+              overlay.remove();
+              
+              // Navigate to the question
+              if (state.currentFlow === 'project-type' && handlers && saveStateFn) {
+                const questionIndex = visibleDesignSpecificsQuestions.findIndex(q => q.id === nextQuestion.id);
+                if (questionIndex >= 0) {
+                  state.jsonQuestionIndex = questionIndex;
+                  saveStateFn(state);
+                  const designSpecificsQuestions = window.DESIGN_SPECIFICS_QUESTIONS || window.GLOBAL_QUESTIONS || [];
+                  if (designSpecificsQuestions.length > 0 && typeof renderGlobalQuestions === 'function') {
+                    renderGlobalQuestions(designSpecificsQuestions, questionIndex, config, mount, state, handlers, saveStateFn);
+                  }
+                }
+              }
+            });
+          }
+          
+          // Show checkmark if answered, skip icon if skipped, empty space if upcoming
+          if (hasAnswer) {
+            const qaCheckmark = createCheckmarkIcon();
+            upcomingItem.appendChild(qaCheckmark);
+          } else if (isSkipped) {
+            const qaSkip = createSkipIcon();
+            upcomingItem.appendChild(qaSkip);
+          } else {
+            const emptySpace = createElement('div');
+            emptySpace.style.cssText = `
+              width: 24px;
+              height: 24px;
+              flex-shrink: 0;
+            `;
+            upcomingItem.appendChild(emptySpace);
+          }
           
           const upcomingItemInfo = createElement('div');
           upcomingItemInfo.style.cssText = `flex: 1;`;
@@ -1931,15 +2079,15 @@
           `;
           
           const upcomingStatus = createElement('div');
-          upcomingStatus.textContent = 'Upcoming';
+          upcomingStatus.textContent = answerText;
           upcomingStatus.style.cssText = `
             font-size: 0.85rem;
-            color: rgba(54,54,54,0.6);
+            color: ${isSkipped ? '#363636' : 'rgba(54,54,54,0.6)'};
+            font-style: ${isSkipped ? 'italic' : 'normal'};
           `;
           
           upcomingItemInfo.appendChild(upcomingLabel);
           upcomingItemInfo.appendChild(upcomingStatus);
-          upcomingItem.appendChild(emptySpace);
           upcomingItem.appendChild(upcomingItemInfo);
           upcomingQuestionsContent.appendChild(upcomingItem);
         }
@@ -1947,7 +2095,7 @@
       
       // Create collapsible section
       const upcomingQuestionsSection = createExpandableSection(
-        `Upcoming Questions (${upcomingCount} possible question${upcomingCount !== 1 ? 's' : ''} remaining)`,
+        `Upcoming Questions (${trulyUpcomingCount} possible question${trulyUpcomingCount !== 1 ? 's' : ''} remaining)`,
         upcomingQuestionsContent,
         false
       );
@@ -2348,11 +2496,19 @@
         
         questions.forEach(question => {
           const answer = jsonQuestionAnswers[question.id];
-          if (answer !== undefined && answer !== null && answer !== '' && answer !== 'NA') {
-            hasAnswers = true;
+          const isSkipped = answer === 'NA' || answer === 'na';
+          const hasAnswer = answer !== undefined && answer !== null && answer !== '' && !isSkipped;
+          
+          if (hasAnswer || isSkipped) {
+            if (hasAnswer) {
+              hasAnswers = true;
+            }
+            
             // Format answer based on question type
             let answerText = '';
-            if (Array.isArray(answer)) {
+            if (isSkipped) {
+              answerText = 'NA';
+            } else if (Array.isArray(answer)) {
               // For multi-select, try to get option names
               answerText = answer.map(ans => {
                 if (question.options) {
@@ -2383,7 +2539,14 @@
               border-radius: 8px;
             `;
             
-            const qaCheckmark = createCheckmarkIcon();
+            // Show checkmark if answered, skip icon if skipped
+            if (hasAnswer) {
+              const qaCheckmark = createCheckmarkIcon();
+              qaItem.appendChild(qaCheckmark);
+            } else if (isSkipped) {
+              const qaSkip = createSkipIcon();
+              qaItem.appendChild(qaSkip);
+            }
             
             const qaInfo = createElement('div');
             qaInfo.style.cssText = `flex: 1;`;
@@ -2401,18 +2564,18 @@
             aValue.textContent = answerText;
             aValue.style.cssText = `
               font-size: 0.85rem;
-              color: rgba(54,54,54,0.6);
+              color: ${isSkipped ? '#363636' : 'rgba(54,54,54,0.6)'};
+              font-style: ${isSkipped ? 'italic' : 'normal'};
             `;
             
             qaInfo.appendChild(qLabel);
             qaInfo.appendChild(aValue);
-            qaItem.appendChild(qaCheckmark);
             qaItem.appendChild(qaInfo);
             questionsContainer.appendChild(qaItem);
           }
         });
 
-        if (!hasAnswers) {
+        if (!hasAnswers && questionsContainer.children.length === 0) {
           const noAnswers = createElement('div');
           noAnswers.textContent = 'No answers recorded for this category yet.';
           noAnswers.style.cssText = `
@@ -2594,10 +2757,10 @@
       }
       
       // Helper function to calculate space info
-      const calculateSpaceInfo = async (spaceId, selectedCategoriesForSpace) => {
+      const calculateSpaceInfo = (spaceId, selectedCategoriesForSpace) => {
         try {
-          // Load all questions for this space
-          const allQuestions = await loadSpaceQuestions(spaceId);
+          // Load all questions for this space (synchronous function)
+          const allQuestions = loadSpaceQuestions(spaceId);
           if (!allQuestions || !Array.isArray(allQuestions)) {
             return { totalQuestions: 0, totalSelections: 0 };
           }
@@ -2615,7 +2778,7 @@
           const visibleQuestions = filterQuestionsByConditions(allQuestions, context);
           
           // Filter by selected categories (if section gate has been completed)
-          const questionsToShow = visibleQuestions.filter(q => {
+          let questionsToShow = visibleQuestions.filter(q => {
             if (q.id && q.id.startsWith('section_gate_')) {
               return false;
             }
@@ -2632,21 +2795,34 @@
           // Count total possible questions
           const totalQuestions = questionsToShow.length;
           
-          // Count total possible material selections (categories with materials)
+          // Count total possible material selections (steps/rounds, not options)
+          // Each category has 3 rounds of material selection (Step 1, Step 2, Step 3)
           let totalSelections = 0;
           if (config.materialsBySpace && config.materialsBySpace[spaceId]) {
             // If categories are selected, count those; otherwise count all categories with materials
             const categoriesToCount = selectedCategoriesForSpace.length > 0 
               ? selectedCategoriesForSpace 
-              : config.materialsBySpace[spaceId].map(cat => cat.category);
+              : config.materialsBySpace[spaceId].map(cat => cat.category || cat.id);
             
             categoriesToCount.forEach(categoryId => {
-              const categoryMaterials = config.materialsBySpace[spaceId].find(cat => cat.category === categoryId);
-              if (categoryMaterials && categoryMaterials.materials) {
-                // Each category typically has 3 rounds of material selection
+              const categoryMaterials = config.materialsBySpace[spaceId].find(cat => 
+                (cat.category || cat.id) === categoryId
+              );
+              if (categoryMaterials) {
+                // Each category has 3 rounds/steps of material selection
                 totalSelections += 3;
               }
             });
+          } else {
+            // If no materialsBySpace config, estimate based on categories from questions
+            const categoriesInQuestions = new Set();
+            questionsToShow.forEach(q => {
+              if (q.category && q.category !== 'section_gate') {
+                categoriesInQuestions.add(q.category);
+              }
+            });
+            // Estimate 3 selection steps per category
+            totalSelections = categoriesInQuestions.size * 3;
           }
           
           return { totalQuestions, totalSelections };
@@ -2692,10 +2868,69 @@
         `;
         upcomingSectionsContent.appendChild(introText);
         
-        // Create collapsible sections for each space (using Promise.all to wait for all async operations)
-        const createSpaceSections = async () => {
-          const spacePromises = upcomingSpaces.map(async (space) => {
-            const spaceInfo = await calculateSpaceInfo(space.id, space.selectedCategories);
+        // Helper function to count answered/skipped questions and selections for a space
+        const countSpaceProgress = (spaceId, selectedCategoriesForSpace) => {
+          let answeredQuestions = 0;
+          let skippedQuestions = 0;
+          let answeredSelections = 0;
+          let skippedSelections = 0;
+          
+          try {
+            // Count questions
+            const allQuestions = loadSpaceQuestions(spaceId);
+            if (allQuestions && Array.isArray(allQuestions)) {
+              const context = {
+                answers: jsonQuestionAnswers,
+                jsonQuestionAnswers: jsonQuestionAnswers,
+                routeMode: state.routeMode || state.jsonQuestionAnswers?.route_mode,
+                selectedCategories: state.selectedCategories,
+                projectContext: state.projectContext
+              };
+              
+              const visibleQuestions = filterQuestionsByConditions(allQuestions, context);
+              const questionsToCount = visibleQuestions.filter(q => {
+                if (q.id && q.id.startsWith('section_gate_')) return false;
+                if (selectedCategoriesForSpace.length > 0) {
+                  if (q.category) return selectedCategoriesForSpace.includes(q.category);
+                  return false;
+                }
+                return true;
+              });
+              
+              questionsToCount.forEach(q => {
+                const answer = jsonQuestionAnswers[q.id];
+                if (answer === 'NA' || answer === 'na') {
+                  skippedQuestions++;
+                } else if (answer !== undefined && answer !== null && answer !== '') {
+                  answeredQuestions++;
+                }
+              });
+            }
+            
+            // Count selections (steps/rounds, not individual options)
+            const materialsSelectionsForSpace = state.materialsSelections?.[spaceId] || {};
+            Object.keys(materialsSelectionsForSpace).forEach(categoryId => {
+              const categoryMaterials = materialsSelectionsForSpace[categoryId];
+              if (categoryMaterials && categoryMaterials.winners && categoryMaterials.winners.length > 0) {
+                // Count completed rounds (winners array length represents completed rounds)
+                answeredSelections += categoryMaterials.winners.length;
+              } else if (categoryMaterials && categoryMaterials.skipped) {
+                // If skipped, count all 3 rounds as skipped
+                skippedSelections += 3;
+              }
+            });
+          } catch (e) {
+            console.warn('Could not count space progress:', e);
+          }
+          
+          return { answeredQuestions, skippedQuestions, answeredSelections, skippedSelections };
+        };
+        
+        // Create collapsible sections for each space
+        const createSpaceSections = () => {
+          const spaceSections = upcomingSpaces.map((space) => {
+            const spaceInfo = calculateSpaceInfo(space.id, space.selectedCategories);
+            const progress = countSpaceProgress(space.id, space.selectedCategories);
             
             const spaceContent = createElement('div');
             spaceContent.style.cssText = `
@@ -2706,7 +2941,11 @@
             
             // Questions info
             const questionsInfo = createElement('div');
-            questionsInfo.textContent = `0 of ${spaceInfo.totalQuestions} possible questions`;
+            const totalAnswered = progress.answeredQuestions + progress.skippedQuestions;
+            questionsInfo.textContent = `${totalAnswered} of ${spaceInfo.totalQuestions} possible questions`;
+            if (progress.skippedQuestions > 0) {
+              questionsInfo.textContent += ` (${progress.skippedQuestions} skipped)`;
+            }
             questionsInfo.style.cssText = `
               font-size: 0.85rem;
               color: rgba(54,54,54,0.6);
@@ -2717,7 +2956,11 @@
             
             // Selections info
             const selectionsInfo = createElement('div');
-            selectionsInfo.textContent = `0 of ${spaceInfo.totalSelections} possible selections`;
+            const totalAnsweredSelections = progress.answeredSelections + progress.skippedSelections;
+            selectionsInfo.textContent = `${totalAnsweredSelections} of ${spaceInfo.totalSelections} possible selections`;
+            if (progress.skippedSelections > 0) {
+              selectionsInfo.textContent += ` (${progress.skippedSelections} skipped)`;
+            }
             selectionsInfo.style.cssText = `
               font-size: 0.85rem;
               color: rgba(54,54,54,0.6);
@@ -2729,12 +2972,18 @@
             // Estimate time: ~1.5 min per question + ~2 min per selection
             const estimatedMinutesPerQuestion = 1.5;
             const estimatedMinutesPerSelection = 2;
+            const remainingQuestions = spaceInfo.totalQuestions - totalAnswered;
+            const remainingSelections = spaceInfo.totalSelections - totalAnsweredSelections;
             const estimatedTime = Math.ceil(
-              (spaceInfo.totalQuestions * estimatedMinutesPerQuestion) + 
-              (spaceInfo.totalSelections * estimatedMinutesPerSelection)
+              (remainingQuestions * estimatedMinutesPerQuestion) + 
+              (remainingSelections * estimatedMinutesPerSelection)
             );
             const timeInfo = createElement('div');
-            timeInfo.textContent = `Estimated time: ~${estimatedTime} minute${estimatedTime !== 1 ? 's' : ''}`;
+            if (estimatedTime > 0) {
+              timeInfo.textContent = `Estimated time remaining: ~${estimatedTime} minute${estimatedTime !== 1 ? 's' : ''}`;
+            } else {
+              timeInfo.textContent = 'All questions and selections completed!';
+            }
             timeInfo.style.cssText = `
               font-size: 0.85rem;
               color: rgba(54,54,54,0.5);
@@ -2751,20 +3000,17 @@
             return spaceSection;
           });
           
-          // Wait for all spaces to be processed
-          const spaceSections = await Promise.all(spacePromises);
-          
           // Append all space sections to content
           spaceSections.forEach(section => {
             upcomingSectionsContent.appendChild(section);
           });
           
           // Create the main section after all spaces are added
-          return createExpandableSection('Upcoming Sections: Space Questions & Selections', upcomingSectionsContent, false);
+          return createExpandableSection('Upcoming Phases', upcomingSectionsContent, false);
         };
         
-        // Call async function and assign result
-        upcomingSectionsSection = await createSpaceSections();
+        // Call function and assign result
+        upcomingSectionsSection = createSpaceSections();
       }
     }
 
@@ -9726,7 +9972,7 @@
         renderExpertIntro(config, mount, state, handlers);
       },
       async onShowProgress() {
-        await renderProgressionTracker(config, mount, state);
+        await renderProgressionTracker(config, mount, state, handlers, saveState);
       },
       onSelectMaterials() {
         // Start expert-guided flow with intro
