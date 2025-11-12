@@ -1113,6 +1113,33 @@
       }
     }
     
+    // Special Features: skip if "No Unique Requirements" (none) is selected in kit_unique_requirements
+    if (categoryId === 'special_features') {
+      const uniqueRequirementsAnswer = answers['kit_unique_requirements'];
+      
+      // Check if "none" is selected (could be array for multi-select)
+      const hasNoUniqueRequirements = Array.isArray(uniqueRequirementsAnswer)
+        ? uniqueRequirementsAnswer.includes('none')
+        : uniqueRequirementsAnswer === 'none';
+      
+      if (hasNoUniqueRequirements) {
+        console.log('Skipping special_features materials - No Unique Requirements selected');
+        // Mark other special features questions as "NA" if they haven't been answered yet
+        // This ensures all special features-related responses are marked as NA
+        if (!answers['kit_special_list']) {
+          state.jsonQuestionAnswers['kit_special_list'] = 'NA';
+        }
+        if (!answers['kit_accent_features']) {
+          state.jsonQuestionAnswers['kit_accent_features'] = 'NA';
+        }
+        // Save state if saveState function is provided
+        if (saveStateFn) {
+          saveStateFn(state);
+        }
+        return true;
+      }
+    }
+    
     // Add other category-specific skip conditions here as needed
     // Example patterns:
     // - If a category has a "Not Applicable" option and it was selected
@@ -1396,6 +1423,1387 @@
     return state.spacesRequested.length !== beforeLength;
   }
 
+  /**
+   * Renders a progression tracker modal showing completed and upcoming categories/materials
+   * @param {Object} config - Quiz config
+   * @param {HTMLElement} mount - Mount element
+   * @param {Object} state - Current state
+   */
+  async function renderProgressionTracker(config, mount, state) {
+    // Helper function to get space name
+    const getSpaceName = (spaceId) => {
+      // Handle special cases
+      if (spaceId === 'general-interior') {
+        return 'General Interior';
+      }
+      if (spaceId === 'general-exterior') {
+        return 'General Exterior';
+      }
+      
+      if (config.spaceTypes) {
+        const spaceInfo = config.spaceTypes.find(s => s.id === spaceId);
+        if (spaceInfo && spaceInfo.name) {
+          return spaceInfo.name;
+        }
+      }
+      return spaceId.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    };
+
+    // Helper function to get category display name
+    const getCategoryDisplayName = (categoryId) => {
+      return categoryId.split('_').map(word => 
+        word.charAt(0).toUpperCase() + word.slice(1)
+      ).join(' ');
+    };
+
+    // Helper function to normalize category name comparison
+    const isCategoryCompleted = (categoryId, completedCategories) => {
+      return completedCategories.includes(categoryId) || 
+        completedCategories.some(completed => {
+          if (categoryId === completed) return true;
+          if (categoryId.startsWith(completed + '_')) return true;
+          if (completed.startsWith(categoryId + '_')) return true;
+          return false;
+        });
+    };
+
+    // Helper function to create expandable section
+    const createExpandableSection = (title, content, isExpanded = false) => {
+      const section = createElement('div', 'idsq-progress-section');
+      section.style.cssText = `
+        margin-bottom: 1rem;
+        border: 1px solid rgba(54,54,54,0.1);
+        border-radius: 8px;
+        overflow: hidden;
+      `;
+
+      const header = createElement('div', 'idsq-progress-section-header');
+      header.style.cssText = `
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem;
+        background: rgba(54,54,54,0.03);
+        cursor: pointer;
+        user-select: none;
+        transition: background 0.2s ease;
+      `;
+      header.addEventListener('mouseenter', () => {
+        header.style.background = 'rgba(54,54,54,0.06)';
+      });
+      header.addEventListener('mouseleave', () => {
+        header.style.background = 'rgba(54,54,54,0.03)';
+      });
+
+      const titleEl = createElement('h3', 'idsq-progress-section-title');
+      titleEl.textContent = title;
+      titleEl.style.cssText = `
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin: 0;
+        color: var(--idsq-text);
+      `;
+
+      const toggleIcon = createElement('span', 'idsq-progress-toggle-icon');
+      toggleIcon.textContent = isExpanded ? '▼' : '▶';
+      toggleIcon.style.cssText = `
+        font-size: 0.875rem;
+        color: rgba(54,54,54,0.6);
+        transition: transform 0.2s ease;
+      `;
+
+      const contentWrapper = createElement('div', 'idsq-progress-section-content');
+      contentWrapper.style.cssText = `
+        display: ${isExpanded ? 'block' : 'none'};
+        padding: 1rem;
+        background: #ffffff;
+      `;
+      contentWrapper.appendChild(content);
+
+      header.appendChild(titleEl);
+      header.appendChild(toggleIcon);
+      section.appendChild(header);
+      section.appendChild(contentWrapper);
+
+      header.addEventListener('click', () => {
+        const isCurrentlyExpanded = contentWrapper.style.display !== 'none';
+        contentWrapper.style.display = isCurrentlyExpanded ? 'none' : 'block';
+        toggleIcon.textContent = isCurrentlyExpanded ? '▶' : '▼';
+      });
+
+      return section;
+    };
+
+    // Helper function to create checkmark icon (blue like card checkmark)
+    const createCheckmarkIcon = () => {
+      const checkmark = createElement('div', 'idsq-card-checkmark');
+      checkmark.style.cssText = `
+        position: relative;
+        width: 24px;
+        height: 24px;
+        background: #006bea;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        box-shadow: 0 2px 8px rgba(0, 107, 234, 0.3);
+      `;
+      checkmark.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M13.3333 4L6 11.3333L2.66667 8" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      `;
+      return checkmark;
+    };
+    // Create modal overlay
+    const overlay = createElement('div', 'idsq-progress-modal-overlay');
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      animation: idsqFadeInUp 0.3s ease;
+    `;
+
+    // Create modal container
+    const modal = createElement('div', 'idsq-progress-modal');
+    modal.style.cssText = `
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow: 0 18px 45px rgba(54,54,54,0.25);
+      max-width: 800px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 2rem;
+      position: relative;
+    `;
+
+    // Close button
+    const closeBtn = createElement('button', 'idsq-progress-modal-close');
+    closeBtn.innerHTML = '×';
+    closeBtn.style.cssText = `
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: none;
+      border: none;
+      font-size: 2rem;
+      font-weight: 300;
+      color: rgba(44,44,44,0.6);
+      cursor: pointer;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: background 0.2s ease, color 0.2s ease;
+    `;
+    closeBtn.addEventListener('click', () => {
+      overlay.remove();
+    });
+    closeBtn.addEventListener('mouseenter', () => {
+      closeBtn.style.background = 'rgba(54,54,54,0.08)';
+      closeBtn.style.color = 'rgba(44,44,44,0.85)';
+    });
+    closeBtn.addEventListener('mouseleave', () => {
+      closeBtn.style.background = 'none';
+      closeBtn.style.color = 'rgba(44,44,44,0.6)';
+    });
+
+    // Title
+    const title = createElement('h2', 'idsq-progress-modal-title');
+    title.textContent = 'Progress Tracker';
+    title.style.cssText = `
+      font-size: 2rem;
+      font-weight: 900;
+      margin: 0 0 1.5rem 0;
+      color: var(--idsq-text);
+      text-align: center;
+    `;
+
+    const contentContainer = createElement('div', 'idsq-progress-content');
+    contentContainer.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    `;
+
+    // 1. Design Style & Room Selection Section
+    const styleRoomContent = createElement('div', 'idsq-progress-style-room-content');
+    styleRoomContent.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    `;
+
+    // Design Style
+    if (state.finalStyle || state.wordChoice) {
+      const styleItem = createElement('div', 'idsq-progress-info-item');
+      styleItem.style.cssText = `
+        position: relative;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        padding: 0.75rem;
+        background: rgba(54,54,54,0.03);
+        border-radius: 8px;
+      `;
+      const styleCheckmark = createCheckmarkIcon();
+      const styleInfo = createElement('div');
+      styleInfo.style.cssText = `flex: 1;`;
+      const styleLabel = createElement('div');
+      styleLabel.textContent = 'Design Style';
+      styleLabel.style.cssText = `font-weight: 600; font-size: 0.95rem; color: var(--idsq-text);`;
+      const styleValue = createElement('div');
+      styleValue.textContent = state.finalStyle?.styleName || state.wordChoice?.word || 'Selected';
+      styleValue.style.cssText = `font-size: 0.85rem; color: rgba(54,54,54,0.6); margin-top: 0.25rem;`;
+      styleInfo.appendChild(styleLabel);
+      styleInfo.appendChild(styleValue);
+      styleItem.appendChild(styleCheckmark);
+      styleItem.appendChild(styleInfo);
+      styleRoomContent.appendChild(styleItem);
+    }
+
+    // Room Selection
+    if (state.selectedSpace || state.spacesRequested) {
+      const roomItem = createElement('div', 'idsq-progress-info-item');
+      roomItem.style.cssText = `
+        position: relative;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        padding: 0.75rem;
+        background: rgba(54,54,54,0.03);
+        border-radius: 8px;
+      `;
+      const roomCheckmark = createCheckmarkIcon();
+      const roomInfo = createElement('div');
+      roomInfo.style.cssText = `flex: 1;`;
+      const roomLabel = createElement('div');
+      roomLabel.textContent = 'Room Selection';
+      roomLabel.style.cssText = `font-weight: 600; font-size: 0.95rem; color: var(--idsq-text);`;
+      const roomValue = createElement('div');
+      if (state.selectedSpace === 'general' && state.spacesRequested) {
+        roomValue.textContent = `Whole Home: ${state.spacesRequested.map(s => getSpaceName(s.id)).join(', ')}`;
+      } else if (state.selectedSpace) {
+        roomValue.textContent = getSpaceName(state.selectedSpace);
+      } else {
+        roomValue.textContent = 'Selected';
+      }
+      roomValue.style.cssText = `font-size: 0.85rem; color: rgba(54,54,54,0.6); margin-top: 0.25rem;`;
+      roomInfo.appendChild(roomLabel);
+      roomInfo.appendChild(roomValue);
+      roomItem.appendChild(roomCheckmark);
+      roomItem.appendChild(roomInfo);
+      styleRoomContent.appendChild(roomItem);
+    }
+
+    const styleRoomSection = createExpandableSection('Design Style & Room Selection', styleRoomContent, true);
+
+    // Get jsonQuestionAnswers early for use in multiple sections
+    const jsonQuestionAnswers = state.jsonQuestionAnswers || {};
+
+    // 2. Design Specifics Questions Section
+    const designSpecificsContent = createElement('div', 'idsq-progress-design-specifics-content');
+    designSpecificsContent.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    `;
+
+    // Load design specifics questions
+    const designSpecificsQuestions = (typeof window !== 'undefined' && (window.DESIGN_SPECIFICS_QUESTIONS || window.GLOBAL_QUESTIONS)) 
+      ? (window.DESIGN_SPECIFICS_QUESTIONS || window.GLOBAL_QUESTIONS) 
+      : [];
+    
+    // Build context for filtering questions
+    const context = {
+      projectType: state.projectType || jsonQuestionAnswers.project_type,
+      buildType: state.buildType || jsonQuestionAnswers.build_type,
+      routeMode: state.routeMode || jsonQuestionAnswers.route_mode,
+      answers: jsonQuestionAnswers,
+      jsonQuestionAnswers: jsonQuestionAnswers,
+      projectContext: state.projectContext || {},
+    };
+
+    // Filter questions based on current state to show only those that were visible/answered
+    const visibleDesignSpecificsQuestions = filterQuestionsByConditions(designSpecificsQuestions, context);
+    
+    // Determine current question if we're in project-type flow
+    let currentDesignSpecificsQuestionId = null;
+    let currentQuestionIndex = null;
+    if (state.currentFlow === 'project-type' && state.jsonQuestionIndex !== undefined && state.jsonQuestionIndex !== null) {
+      currentQuestionIndex = state.jsonQuestionIndex;
+      if (visibleDesignSpecificsQuestions.length > state.jsonQuestionIndex) {
+        currentDesignSpecificsQuestionId = visibleDesignSpecificsQuestions[state.jsonQuestionIndex].id;
+      }
+    }
+    
+    // Calculate total possible questions (all questions that could be shown)
+    const totalPossibleQuestions = visibleDesignSpecificsQuestions.length;
+    
+    // Calculate answered questions count
+    let answeredCount = 0;
+    visibleDesignSpecificsQuestions.forEach(question => {
+      const answer = jsonQuestionAnswers[question.id];
+      if (answer !== undefined && answer !== null && answer !== '' && answer !== 'NA') {
+        answeredCount++;
+      }
+    });
+    
+    // Estimate time: ~1-2 minutes per question (use 1.5 minutes average)
+    const estimatedMinutesPerQuestion = 1.5;
+    const remainingQuestions = totalPossibleQuestions - answeredCount;
+    const estimatedTimeRemaining = Math.ceil(remainingQuestions * estimatedMinutesPerQuestion);
+    
+    let hasDesignSpecificsAnswers = false;
+    let insertUpcomingAfterIndex = -1;
+    
+    // Render all answered questions and current question
+    visibleDesignSpecificsQuestions.forEach((question, index) => {
+      const answer = jsonQuestionAnswers[question.id];
+      const isCurrent = question.id === currentDesignSpecificsQuestionId;
+      const hasAnswer = answer !== undefined && answer !== null && answer !== '' && answer !== 'NA';
+      
+      // Show question if it has an answer OR if it's the current question
+      if (hasAnswer || isCurrent) {
+        if (hasAnswer) {
+          hasDesignSpecificsAnswers = true;
+        }
+        
+        // Track where to insert upcoming questions (after current)
+        if (isCurrent) {
+          insertUpcomingAfterIndex = designSpecificsContent.children.length;
+        }
+        
+        // Format answer based on question type
+        let answerText = '';
+        if (hasAnswer) {
+          if (Array.isArray(answer)) {
+            // For multi-select, try to get option names
+            answerText = answer.map(ans => {
+              if (question.options) {
+                const option = question.options.find(opt => opt.id === ans);
+                return option ? option.name : ans;
+              }
+              return ans;
+            }).join(', ');
+          } else {
+            // For single-select, try to get option name
+            if (question.options) {
+              const option = question.options.find(opt => opt.id === answer);
+              answerText = option ? option.name : String(answer);
+            } else {
+              answerText = String(answer);
+            }
+          }
+        } else {
+          answerText = 'In Progress...';
+        }
+
+        // Create Q&A item similar to Design Style section
+        const qaItem = createElement('div', 'idsq-progress-info-item');
+        qaItem.style.cssText = `
+          position: relative;
+          display: flex;
+          align-items: flex-start;
+          gap: 0.75rem;
+          padding: 0.75rem;
+          background: ${isCurrent ? 'rgba(0, 107, 234, 0.08)' : 'rgba(54,54,54,0.03)'};
+          border-radius: 8px;
+          border: ${isCurrent ? '2px solid #006bea' : 'none'};
+        `;
+        
+        // Only show checkmark if answered
+        if (hasAnswer) {
+          const qaCheckmark = createCheckmarkIcon();
+          qaItem.appendChild(qaCheckmark);
+        }
+        
+        const qaInfo = createElement('div');
+        qaInfo.style.cssText = `flex: 1;`;
+        
+        const qLabel = createElement('div');
+        // Replace {STYLE_NAME} placeholder with actual style name
+        let promptText = question.prompt || question.id;
+        if (promptText.includes('{STYLE_NAME}')) {
+          const styleName = state.finalStyle?.styleName || state.wordChoice?.word || 'selected style';
+          promptText = promptText.replace('{STYLE_NAME}', styleName);
+        }
+        qLabel.textContent = promptText;
+        qLabel.style.cssText = `
+          font-weight: 600;
+          font-size: 0.95rem;
+          color: ${isCurrent ? '#006bea' : 'var(--idsq-text)'};
+          margin-bottom: 0.25rem;
+        `;
+        
+        const aValue = createElement('div');
+        aValue.textContent = answerText;
+        aValue.style.cssText = `
+          font-size: 0.85rem;
+          color: ${isCurrent ? '#006bea' : 'rgba(54,54,54,0.6)'};
+          font-weight: ${isCurrent ? '600' : '400'};
+        `;
+        
+        qaInfo.appendChild(qLabel);
+        qaInfo.appendChild(aValue);
+        qaItem.appendChild(qaInfo);
+        designSpecificsContent.appendChild(qaItem);
+      }
+    });
+
+    if (!hasDesignSpecificsAnswers && !currentDesignSpecificsQuestionId) {
+      const noAnswers = createElement('div');
+      noAnswers.textContent = 'No design specifics questions answered yet.';
+      noAnswers.style.cssText = `
+        padding: 1rem;
+        text-align: center;
+        color: rgba(54,54,54,0.5);
+        font-style: italic;
+      `;
+      designSpecificsContent.appendChild(noAnswers);
+    }
+    
+    // Add upcoming questions section after current question
+    if (currentQuestionIndex !== null && currentQuestionIndex < visibleDesignSpecificsQuestions.length - 1) {
+      const upcomingCount = visibleDesignSpecificsQuestions.length - currentQuestionIndex - 1;
+      
+      // Create collapsible section for upcoming questions
+      const upcomingQuestionsContent = createElement('div');
+      upcomingQuestionsContent.style.cssText = `
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      `;
+      
+      // Add upcoming questions as individual items (like completed questions)
+      for (let i = 1; i <= upcomingCount; i++) {
+        const nextIndex = currentQuestionIndex + i;
+        if (nextIndex < visibleDesignSpecificsQuestions.length) {
+          const nextQuestion = visibleDesignSpecificsQuestions[nextIndex];
+          
+          const upcomingItem = createElement('div', 'idsq-progress-info-item');
+          upcomingItem.style.cssText = `
+            position: relative;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            background: rgba(54,54,54,0.03);
+            border-radius: 8px;
+          `;
+          
+          // Empty space where checkmark would be (to align with completed questions)
+          const emptySpace = createElement('div');
+          emptySpace.style.cssText = `
+            width: 24px;
+            height: 24px;
+            flex-shrink: 0;
+          `;
+          
+          const upcomingItemInfo = createElement('div');
+          upcomingItemInfo.style.cssText = `flex: 1;`;
+          
+          const upcomingLabel = createElement('div');
+          let upcomingPrompt = nextQuestion.prompt || nextQuestion.id;
+          // Replace {STYLE_NAME} if present
+          if (upcomingPrompt.includes('{STYLE_NAME}')) {
+            const styleName = state.finalStyle?.styleName || state.wordChoice?.word || 'selected style';
+            upcomingPrompt = upcomingPrompt.replace('{STYLE_NAME}', styleName);
+          }
+          upcomingLabel.textContent = upcomingPrompt;
+          upcomingLabel.style.cssText = `
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--idsq-text);
+            margin-bottom: 0.25rem;
+          `;
+          
+          const upcomingStatus = createElement('div');
+          upcomingStatus.textContent = 'Upcoming';
+          upcomingStatus.style.cssText = `
+            font-size: 0.85rem;
+            color: rgba(54,54,54,0.6);
+          `;
+          
+          upcomingItemInfo.appendChild(upcomingLabel);
+          upcomingItemInfo.appendChild(upcomingStatus);
+          upcomingItem.appendChild(emptySpace);
+          upcomingItem.appendChild(upcomingItemInfo);
+          upcomingQuestionsContent.appendChild(upcomingItem);
+        }
+      }
+      
+      // Create collapsible section
+      const upcomingQuestionsSection = createExpandableSection(
+        `Upcoming Questions (${upcomingCount} possible question${upcomingCount !== 1 ? 's' : ''} remaining)`,
+        upcomingQuestionsContent,
+        false
+      );
+      
+      // Insert after current question
+      if (insertUpcomingAfterIndex >= 0 && insertUpcomingAfterIndex < designSpecificsContent.children.length) {
+        // Insert right after the current question
+        const currentQuestionElement = designSpecificsContent.children[insertUpcomingAfterIndex];
+        if (currentQuestionElement && currentQuestionElement.nextSibling) {
+          designSpecificsContent.insertBefore(upcomingQuestionsSection, currentQuestionElement.nextSibling);
+        } else {
+          designSpecificsContent.appendChild(upcomingQuestionsSection);
+        }
+      } else {
+        designSpecificsContent.appendChild(upcomingQuestionsSection);
+      }
+    }
+    
+    // Add progress summary at the top
+    const progressInfo = createElement('div');
+    progressInfo.style.cssText = `
+      padding: 1rem;
+      background: rgba(0, 107, 234, 0.05);
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      border-left: 4px solid #006bea;
+    `;
+    
+    const progressText = createElement('div');
+    progressText.textContent = `${answeredCount} of ${totalPossibleQuestions} possible questions answered`;
+    progressText.style.cssText = `
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: #006bea;
+      margin-bottom: 0.5rem;
+    `;
+    
+    const timeEstimate = createElement('div');
+    if (remainingQuestions > 0) {
+      timeEstimate.textContent = `Estimated time remaining: ~${estimatedTimeRemaining} minute${estimatedTimeRemaining !== 1 ? 's' : ''}`;
+    } else {
+      timeEstimate.textContent = 'All questions completed!';
+    }
+    timeEstimate.style.cssText = `
+      font-size: 0.85rem;
+      color: rgba(54,54,54,0.7);
+    `;
+    
+    progressInfo.appendChild(progressText);
+    progressInfo.appendChild(timeEstimate);
+    
+    // Insert progress info at the beginning
+    if (designSpecificsContent.firstChild) {
+      designSpecificsContent.insertBefore(progressInfo, designSpecificsContent.firstChild);
+    } else {
+      designSpecificsContent.appendChild(progressInfo);
+    }
+
+    // Show section if there are answers OR if there's a current question
+    const shouldShowDesignSpecifics = hasDesignSpecificsAnswers || currentDesignSpecificsQuestionId !== null;
+    const designSpecificsSection = createExpandableSection('Design Specifics', designSpecificsContent, shouldShowDesignSpecifics);
+
+    // 3. Current Space Categories Section
+    // Determine actual current space based on flow
+    let currentSpaceId = state.currentSpace || state.selectedSpace;
+    
+    // If we're in section-gates flow, determine current space from spaceOrder
+    if (state.currentFlow === 'section-gates' && state.spaceOrder && state.currentSpaceIndex !== undefined && state.currentSpaceIndex !== null) {
+      if (state.currentSpaceIndex < state.spaceOrder.length) {
+        currentSpaceId = state.spaceOrder[state.currentSpaceIndex];
+      }
+    }
+    
+    // If we're in project-type flow (design specifics), there's no current space yet
+    if (state.currentFlow === 'project-type') {
+      currentSpaceId = null;
+    }
+    
+    const completedCategories = currentSpaceId ? (state.completedCategories?.[currentSpaceId] || []) : [];
+    const materialsSelections = currentSpaceId ? (state.materialsSelections?.[currentSpaceId] || {}) : {};
+    const selectedCategories = currentSpaceId ? (state.selectedCategories?.[`section_gate_${currentSpaceId}`] || []) : [];
+    
+    // Determine current category more accurately
+    // If we're in space-questions flow, determine category from current question
+    let currentCategory = state.currentCategory;
+    if (!currentCategory && state.currentFlow === 'space-questions' && currentSpaceId) {
+      // Load questions to determine current category using same logic as renderSpaceQuestions
+      try {
+        const allQuestions = loadSpaceQuestions(currentSpaceId);
+        if (allQuestions && Array.isArray(allQuestions)) {
+          const currentQuestionIndex = state.currentSpaceQuestionIndex?.[currentSpaceId];
+          if (currentQuestionIndex !== undefined) {
+            // Build context for filtering
+            const context = {
+              answers: jsonQuestionAnswers,
+              jsonQuestionAnswers: jsonQuestionAnswers,
+              routeMode: state.routeMode || state.jsonQuestionAnswers?.route_mode,
+              selectedCategories: state.selectedCategories,
+              projectContext: state.projectContext
+            };
+            
+            // Filter questions by showIf conditions (same as renderSpaceQuestions)
+            const visibleQuestions = filterQuestionsByConditions(allQuestions, context);
+            
+            // Further filter by selected categories (same as renderSpaceQuestions)
+            const sectionGateId = `section_gate_${currentSpaceId}`;
+            const selectedCategoriesForSpace = (state.selectedCategories || {})[sectionGateId] || [];
+            
+            const questionsToShow = visibleQuestions.filter(q => {
+              // Exclude section gate questions
+              if (q.id && q.id.startsWith('section_gate_')) {
+                return false;
+              }
+              // Filter by selected categories
+              if (selectedCategoriesForSpace.length > 0) {
+                if (q.category) {
+                  return selectedCategoriesForSpace.includes(q.category);
+                }
+                return false;
+              }
+              return !q.category || true;
+            });
+            
+            // Get the current question
+            if (questionsToShow.length > currentQuestionIndex) {
+              const currentQuestion = questionsToShow[currentQuestionIndex];
+              if (currentQuestion && currentQuestion.category) {
+                currentCategory = currentQuestion.category;
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Could not determine current category:', e);
+      }
+    }
+
+    const categoriesContent = createElement('div', 'idsq-progress-categories-content');
+    categoriesContent.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    `;
+
+    // Helper function to get questions for a category
+    const getCategoryQuestions = async (spaceId, categoryId) => {
+      try {
+        const spaceData = await loadSpaceQuestions(spaceId);
+        if (!spaceData || !Array.isArray(spaceData)) return [];
+        
+        // Flatten questions from all categories
+        const allQuestions = [];
+        spaceData.forEach(categoryObj => {
+          if (categoryObj.category === categoryId && categoryObj.questions) {
+            categoryObj.questions.forEach(q => {
+              allQuestions.push({ ...q, category: categoryId });
+            });
+          }
+        });
+        return allQuestions;
+      } catch (e) {
+        console.warn('Could not load questions for category:', e);
+        return [];
+      }
+    };
+    
+    // Pre-calculate question counts for all categories
+    const categoryQuestionCounts = {};
+    if (currentSpaceId) {
+      const calculateCounts = async () => {
+        for (const categoryId of selectedCategories) {
+          try {
+            const categoryQuestions = await getCategoryQuestions(currentSpaceId, categoryId);
+            const context = {
+              answers: jsonQuestionAnswers,
+              jsonQuestionAnswers: jsonQuestionAnswers,
+              routeMode: state.routeMode || state.jsonQuestionAnswers?.route_mode,
+              selectedCategories: state.selectedCategories,
+              projectContext: state.projectContext
+            };
+            const visibleCategoryQuestions = filterQuestionsByConditions(categoryQuestions, context);
+            let answeredCount = 0;
+            visibleCategoryQuestions.forEach(q => {
+              const answer = jsonQuestionAnswers[q.id];
+              if (answer !== undefined && answer !== null && answer !== '' && answer !== 'NA') {
+                answeredCount++;
+              }
+            });
+            categoryQuestionCounts[categoryId] = {
+              total: visibleCategoryQuestions.length,
+              answered: answeredCount
+            };
+          } catch (e) {
+            categoryQuestionCounts[categoryId] = { total: 0, answered: 0 };
+          }
+        }
+        // Update category statuses after calculation
+        selectedCategories.forEach((categoryId, index) => {
+          const categoryItem = categoriesContent.children[index + 1]; // +1 for progress info
+          if (categoryItem && categoryQuestionCounts[categoryId]) {
+            const statusEl = categoryItem.querySelector('.idsq-progress-category-status');
+            if (statusEl) {
+              const counts = categoryQuestionCounts[categoryId];
+              const isCurrent = categoryId === currentCategory;
+              const isCompleted = isCategoryCompleted(categoryId, completedCategories);
+              const hasMaterials = materialsSelections[categoryId] && 
+                materialsSelections[categoryId].winners && 
+                materialsSelections[categoryId].winners.length > 0;
+              
+              let statusText = '';
+              if (isCurrent) {
+                statusText = `Current Category • ${counts.answered} of ${counts.total} possible questions`;
+              } else if (isCompleted && hasMaterials) {
+                statusText = `Completed (Questions + Materials) • ${counts.answered} of ${counts.total} possible questions`;
+              } else if (isCompleted) {
+                statusText = `Questions Completed • ${counts.answered} of ${counts.total} possible questions`;
+              } else {
+                statusText = `Upcoming • ${counts.total} possible question${counts.total !== 1 ? 's' : ''}`;
+              }
+              statusEl.textContent = statusText;
+            }
+          }
+        });
+      };
+      calculateCounts();
+    }
+
+    // Create category item with click handler
+    const createCategoryItem = (categoryId, isCurrent = false, questionCounts = null) => {
+      const categoryItem = createElement('div', 'idsq-progress-category-item');
+      const isCompleted = isCategoryCompleted(categoryId, completedCategories);
+      const hasMaterials = materialsSelections[categoryId] && 
+        materialsSelections[categoryId].winners && 
+        materialsSelections[categoryId].winners.length > 0;
+
+      categoryItem.style.cssText = `
+        position: relative;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        padding: 0.75rem;
+        background: ${isCurrent ? 'rgba(0, 107, 234, 0.08)' : 'rgba(54,54,54,0.03)'};
+        border-radius: 8px;
+        border: ${isCurrent ? '2px solid #006bea' : '1px solid rgba(54,54,54,0.1)'};
+        cursor: pointer;
+        transition: all 0.2s ease;
+      `;
+
+      categoryItem.addEventListener('mouseenter', () => {
+        if (!isCurrent) {
+          categoryItem.style.background = 'rgba(54,54,54,0.06)';
+        }
+      });
+      categoryItem.addEventListener('mouseleave', () => {
+        if (!isCurrent) {
+          categoryItem.style.background = 'rgba(54,54,54,0.03)';
+        }
+      });
+
+      // Status icon - use blue checkmark for completed
+      let statusIcon;
+      if (isCompleted) {
+        statusIcon = createCheckmarkIcon();
+      } else {
+        statusIcon = createElement('div', 'idsq-progress-status-icon');
+        statusIcon.style.cssText = `
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          background: transparent;
+          border: 2px solid rgba(54,54,54,0.3);
+          flex-shrink: 0;
+        `;
+      }
+
+      const categoryInfo = createElement('div', 'idsq-progress-category-info');
+      categoryInfo.style.cssText = `
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+      `;
+
+      const categoryName = createElement('div', 'idsq-progress-category-name');
+      categoryName.textContent = getCategoryDisplayName(categoryId);
+      categoryName.style.cssText = `
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: ${isCurrent ? '#006bea' : 'var(--idsq-text)'};
+      `;
+
+      const categoryStatus = createElement('div', 'idsq-progress-category-status');
+      
+      // Set status text with question counts if available
+      let statusText = '';
+      const counts = questionCounts || { total: 0, answered: 0 };
+      
+      if (isCurrent) {
+        if (counts.total > 0) {
+          statusText = `Current Category • ${counts.answered} of ${counts.total} possible questions`;
+        } else {
+          statusText = 'Current Category';
+        }
+        categoryStatus.style.cssText = `
+          font-size: 0.85rem;
+          color: #006bea;
+          font-weight: 600;
+        `;
+      } else if (isCompleted && hasMaterials) {
+        if (counts.total > 0) {
+          statusText = `Completed (Questions + Materials) • ${counts.answered} of ${counts.total} possible questions`;
+        } else {
+          statusText = 'Completed (Questions + Materials)';
+        }
+        categoryStatus.style.cssText = `
+          font-size: 0.85rem;
+          color: #10b981;
+        `;
+      } else if (isCompleted) {
+        if (counts.total > 0) {
+          statusText = `Questions Completed • ${counts.answered} of ${counts.total} possible questions`;
+        } else {
+          statusText = 'Questions Completed';
+        }
+        categoryStatus.style.cssText = `
+          font-size: 0.85rem;
+          color: rgba(54,54,54,0.6);
+        `;
+      } else {
+        if (counts.total > 0) {
+          statusText = `Upcoming • ${counts.total} possible question${counts.total !== 1 ? 's' : ''}`;
+        } else {
+          statusText = 'Upcoming';
+        }
+        categoryStatus.style.cssText = `
+          font-size: 0.85rem;
+          color: rgba(54,54,54,0.4);
+        `;
+      }
+      
+      categoryStatus.textContent = statusText;
+
+      categoryInfo.appendChild(categoryName);
+      categoryInfo.appendChild(categoryStatus);
+      categoryItem.appendChild(statusIcon);
+      categoryItem.appendChild(categoryInfo);
+
+      // Click handler to show questions/answers
+      categoryItem.addEventListener('click', async () => {
+        // Create a modal to show questions and answers
+        const questionsModal = createElement('div', 'idsq-progress-questions-modal');
+        questionsModal.style.cssText = `
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.5);
+          z-index: 2000;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 1rem;
+        `;
+
+        const questionsContent = createElement('div');
+        questionsContent.style.cssText = `
+          background: #ffffff;
+          border-radius: 16px;
+          max-width: 800px;
+          width: 100%;
+          max-height: 80vh;
+          overflow-y: auto;
+          padding: 2rem;
+          position: relative;
+        `;
+
+        const questionsTitle = createElement('h3');
+        questionsTitle.textContent = `${getCategoryDisplayName(categoryId)} - Questions & Answers`;
+        questionsTitle.style.cssText = `
+          font-size: 1.5rem;
+          font-weight: 900;
+          margin: 0 0 1.5rem 0;
+          color: var(--idsq-text);
+          text-align: center;
+        `;
+
+        const questionsContainer = createElement('div');
+        questionsContainer.style.cssText = `
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+        `;
+
+        // Load and display questions
+        const questions = await getCategoryQuestions(currentSpaceId, categoryId);
+        let hasAnswers = false;
+        
+        questions.forEach(question => {
+          const answer = jsonQuestionAnswers[question.id];
+          if (answer !== undefined && answer !== null && answer !== '' && answer !== 'NA') {
+            hasAnswers = true;
+            // Format answer based on question type
+            let answerText = '';
+            if (Array.isArray(answer)) {
+              // For multi-select, try to get option names
+              answerText = answer.map(ans => {
+                if (question.options) {
+                  const option = question.options.find(opt => opt.id === ans);
+                  return option ? option.name : ans;
+                }
+                return ans;
+              }).join(', ');
+            } else {
+              // For single-select, try to get option name
+              if (question.options) {
+                const option = question.options.find(opt => opt.id === answer);
+                answerText = option ? option.name : String(answer);
+              } else {
+                answerText = String(answer);
+              }
+            }
+
+            // Create Q&A item similar to Design Style section
+            const qaItem = createElement('div', 'idsq-progress-info-item');
+            qaItem.style.cssText = `
+              position: relative;
+              display: flex;
+              align-items: flex-start;
+              gap: 0.75rem;
+              padding: 0.75rem;
+              background: rgba(54,54,54,0.03);
+              border-radius: 8px;
+            `;
+            
+            const qaCheckmark = createCheckmarkIcon();
+            
+            const qaInfo = createElement('div');
+            qaInfo.style.cssText = `flex: 1;`;
+            
+            const qLabel = createElement('div');
+            qLabel.textContent = question.prompt || question.id;
+            qLabel.style.cssText = `
+              font-weight: 600;
+              font-size: 0.95rem;
+              color: var(--idsq-text);
+              margin-bottom: 0.25rem;
+            `;
+            
+            const aValue = createElement('div');
+            aValue.textContent = answerText;
+            aValue.style.cssText = `
+              font-size: 0.85rem;
+              color: rgba(54,54,54,0.6);
+            `;
+            
+            qaInfo.appendChild(qLabel);
+            qaInfo.appendChild(aValue);
+            qaItem.appendChild(qaCheckmark);
+            qaItem.appendChild(qaInfo);
+            questionsContainer.appendChild(qaItem);
+          }
+        });
+
+        if (!hasAnswers) {
+          const noAnswers = createElement('div');
+          noAnswers.textContent = 'No answers recorded for this category yet.';
+          noAnswers.style.cssText = `
+            padding: 1rem;
+            text-align: center;
+            color: rgba(54,54,54,0.5);
+            font-style: italic;
+          `;
+          questionsContainer.appendChild(noAnswers);
+        }
+
+        // Wrap questions in expandable section if there are multiple
+        let questionsDisplay = questionsContainer;
+        if (questionsContainer.children.length > 3) {
+          questionsDisplay = createExpandableSection('Questions & Answers', questionsContainer, true);
+        }
+
+        const closeQuestionsBtn = createElement('button');
+        closeQuestionsBtn.innerHTML = '×';
+        closeQuestionsBtn.style.cssText = `
+          position: absolute;
+          top: 1rem;
+          right: 1rem;
+          background: none;
+          border: none;
+          font-size: 2rem;
+          font-weight: 300;
+          color: rgba(44,44,44,0.6);
+          cursor: pointer;
+          width: 40px;
+          height: 40px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          transition: background 0.2s ease, color 0.2s ease;
+        `;
+        closeQuestionsBtn.addEventListener('click', () => {
+          questionsModal.remove();
+        });
+        closeQuestionsBtn.addEventListener('mouseenter', () => {
+          closeQuestionsBtn.style.background = 'rgba(54,54,54,0.08)';
+          closeQuestionsBtn.style.color = 'rgba(44,44,44,0.85)';
+        });
+        closeQuestionsBtn.addEventListener('mouseleave', () => {
+          closeQuestionsBtn.style.background = 'none';
+          closeQuestionsBtn.style.color = 'rgba(44,44,44,0.6)';
+        });
+
+        questionsContent.appendChild(closeQuestionsBtn);
+        questionsContent.appendChild(questionsTitle);
+        questionsContent.appendChild(questionsDisplay);
+        questionsModal.appendChild(questionsContent);
+        questionsModal.addEventListener('click', (e) => {
+          if (e.target === questionsModal) {
+            questionsModal.remove();
+          }
+        });
+        document.body.appendChild(questionsModal);
+      });
+
+      return categoryItem;
+    };
+
+    // Calculate category progress
+    let totalPossibleCategories = selectedCategories.length;
+    let completedCategoriesCount = completedCategories.length;
+    
+    // Add progress info for categories if we have a current space
+    if (currentSpaceId && selectedCategories.length > 0) {
+      const categoryProgressInfo = createElement('div');
+      categoryProgressInfo.style.cssText = `
+        padding: 1rem;
+        background: rgba(0, 107, 234, 0.05);
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        border-left: 4px solid #006bea;
+      `;
+      
+      const categoryProgressText = createElement('div');
+      categoryProgressText.textContent = `${completedCategoriesCount} of ${totalPossibleCategories} categories completed`;
+      categoryProgressText.style.cssText = `
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: #006bea;
+        margin-bottom: 0.5rem;
+      `;
+      
+      // Estimate time for categories: ~3-5 minutes per category (questions + materials)
+      const estimatedMinutesPerCategory = 4;
+      const remainingCategories = totalPossibleCategories - completedCategoriesCount;
+      const estimatedCategoryTime = Math.ceil(remainingCategories * estimatedMinutesPerCategory);
+      
+      const categoryTimeEstimate = createElement('div');
+      if (remainingCategories > 0) {
+        categoryTimeEstimate.textContent = `Estimated time remaining: ~${estimatedCategoryTime} minute${estimatedCategoryTime !== 1 ? 's' : ''}`;
+      } else {
+        categoryTimeEstimate.textContent = 'All categories completed!';
+      }
+      categoryTimeEstimate.style.cssText = `
+        font-size: 0.85rem;
+        color: rgba(54,54,54,0.7);
+      `;
+      
+      categoryProgressInfo.appendChild(categoryProgressText);
+      categoryProgressInfo.appendChild(categoryTimeEstimate);
+      
+      // Insert at the beginning
+      if (categoriesContent.firstChild) {
+        categoriesContent.insertBefore(categoryProgressInfo, categoriesContent.firstChild);
+      } else {
+        categoriesContent.appendChild(categoryProgressInfo);
+      }
+    }
+    
+    selectedCategories.forEach(categoryId => {
+      const isCurrent = categoryId === currentCategory;
+      const counts = categoryQuestionCounts[categoryId] || null;
+      categoriesContent.appendChild(createCategoryItem(categoryId, isCurrent, counts));
+    });
+
+    // Only show Current Space section if we have a current space
+    let spaceCategoriesSection = null;
+    if (currentSpaceId) {
+      const currentSpaceName = getSpaceName(currentSpaceId);
+      spaceCategoriesSection = createExpandableSection(
+        `Current Space: ${currentSpaceName}`,
+        categoriesContent,
+        true
+      );
+    }
+
+    // 3. Upcoming Sections (all remaining spaces)
+    let upcomingSectionsSection = null;
+    
+    // Determine which spaces are selected
+    let selectedSpaceIds = [];
+    if (state.spaceOrder && state.spaceOrder.length > 0) {
+      selectedSpaceIds = [...state.spaceOrder];
+    } else if (state.spacesRequested && Array.isArray(state.spacesRequested) && state.spacesRequested.length > 0) {
+      selectedSpaceIds = state.spacesRequested.map(s => s.id || s);
+    } else if (state.selectedSpace && state.selectedSpace !== 'general') {
+      selectedSpaceIds = [state.selectedSpace];
+    } else if (state.selectedSpace === 'general') {
+      // Whole home - get all spaces from config
+      if (config.spaceTypes) {
+        selectedSpaceIds = config.spaceTypes
+          .filter(s => s.id !== 'general')
+          .map(s => s.id);
+      }
+    }
+    
+    // Add General Interior and General Exterior if they exist in the flow
+    const generalInteriorId = 'general-interior';
+    const generalExteriorId = 'general-exterior';
+    const hasGeneralInterior = window.GENERAL_INTERIOR_QUESTIONS || window[`GENERAL_INTERIOR_QUESTIONS`];
+    const hasGeneralExterior = window.GENERAL_EXTERIOR_QUESTIONS || window[`GENERAL_EXTERIOR_QUESTIONS`];
+    
+    if (hasGeneralInterior && !selectedSpaceIds.includes(generalInteriorId)) {
+      selectedSpaceIds.unshift(generalInteriorId); // Add at beginning
+    }
+    if (hasGeneralExterior && !selectedSpaceIds.includes(generalExteriorId)) {
+      selectedSpaceIds.push(generalExteriorId); // Add at end
+    }
+    
+    if (selectedSpaceIds.length > 0) {
+      const currentIndex = currentSpaceId ? selectedSpaceIds.indexOf(currentSpaceId) : -1;
+      const upcomingSpaces = [];
+      
+      // Determine starting index for upcoming spaces
+      let startIndex = 0;
+      if (currentIndex >= 0) {
+        startIndex = currentIndex + 1;
+      } else if (state.currentFlow === 'project-type') {
+        // If we're in design specifics, show all spaces as upcoming
+        startIndex = 0;
+      } else if (state.currentFlow === 'section-gates' && state.currentSpaceIndex !== undefined && state.currentSpaceIndex !== null) {
+        startIndex = state.currentSpaceIndex;
+      }
+      
+      // Helper function to calculate space info
+      const calculateSpaceInfo = async (spaceId, selectedCategoriesForSpace) => {
+        try {
+          // Load all questions for this space
+          const allQuestions = await loadSpaceQuestions(spaceId);
+          if (!allQuestions || !Array.isArray(allQuestions)) {
+            return { totalQuestions: 0, totalSelections: 0 };
+          }
+          
+          // Build context for filtering
+          const context = {
+            answers: jsonQuestionAnswers,
+            jsonQuestionAnswers: jsonQuestionAnswers,
+            routeMode: state.routeMode || state.jsonQuestionAnswers?.route_mode,
+            selectedCategories: state.selectedCategories,
+            projectContext: state.projectContext
+          };
+          
+          // Filter questions by showIf conditions
+          const visibleQuestions = filterQuestionsByConditions(allQuestions, context);
+          
+          // Filter by selected categories (if section gate has been completed)
+          const questionsToShow = visibleQuestions.filter(q => {
+            if (q.id && q.id.startsWith('section_gate_')) {
+              return false;
+            }
+            if (selectedCategoriesForSpace.length > 0) {
+              if (q.category) {
+                return selectedCategoriesForSpace.includes(q.category);
+              }
+              return false;
+            }
+            // If no categories selected yet, show all questions (they'll be filtered by showIf)
+            return true;
+          });
+          
+          // Count total possible questions
+          const totalQuestions = questionsToShow.length;
+          
+          // Count total possible material selections (categories with materials)
+          let totalSelections = 0;
+          if (config.materialsBySpace && config.materialsBySpace[spaceId]) {
+            // If categories are selected, count those; otherwise count all categories with materials
+            const categoriesToCount = selectedCategoriesForSpace.length > 0 
+              ? selectedCategoriesForSpace 
+              : config.materialsBySpace[spaceId].map(cat => cat.category);
+            
+            categoriesToCount.forEach(categoryId => {
+              const categoryMaterials = config.materialsBySpace[spaceId].find(cat => cat.category === categoryId);
+              if (categoryMaterials && categoryMaterials.materials) {
+                // Each category typically has 3 rounds of material selection
+                totalSelections += 3;
+              }
+            });
+          }
+          
+          return { totalQuestions, totalSelections };
+        } catch (e) {
+          console.warn('Could not calculate space info:', e);
+          return { totalQuestions: 0, totalSelections: 0 };
+        }
+      };
+      
+      // Collect all upcoming spaces (show all selected spaces, not just those with completed gates)
+      for (let i = startIndex; i < selectedSpaceIds.length; i++) {
+        const spaceId = selectedSpaceIds[i];
+        const selectedCategoriesForSpace = state.selectedCategories?.[`section_gate_${spaceId}`] || [];
+        
+        // Show space even if categories haven't been selected yet (for upcoming display)
+        upcomingSpaces.push({
+          id: spaceId,
+          name: getSpaceName(spaceId) || spaceId,
+          categoryCount: selectedCategoriesForSpace.length,
+          selectedCategories: selectedCategoriesForSpace
+        });
+      }
+      
+      if (upcomingSpaces.length > 0) {
+        const upcomingSectionsContent = createElement('div');
+        upcomingSectionsContent.style.cssText = `
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+        `;
+        
+        // Add intro text
+        const introText = createElement('div');
+        introText.textContent = 'The next phases include space-specific questions and material selections for each space.';
+        introText.style.cssText = `
+          padding: 1rem;
+          background: rgba(0, 107, 234, 0.05);
+          border-radius: 8px;
+          border-left: 4px solid #006bea;
+          font-size: 0.9rem;
+          color: rgba(54,54,54,0.8);
+          margin-bottom: 0.5rem;
+        `;
+        upcomingSectionsContent.appendChild(introText);
+        
+        // Create collapsible sections for each space (using Promise.all to wait for all async operations)
+        const createSpaceSections = async () => {
+          const spacePromises = upcomingSpaces.map(async (space) => {
+            const spaceInfo = await calculateSpaceInfo(space.id, space.selectedCategories);
+            
+            const spaceContent = createElement('div');
+            spaceContent.style.cssText = `
+              display: flex;
+              flex-direction: column;
+              gap: 0.5rem;
+            `;
+            
+            // Questions info
+            const questionsInfo = createElement('div');
+            questionsInfo.textContent = `0 of ${spaceInfo.totalQuestions} possible questions`;
+            questionsInfo.style.cssText = `
+              font-size: 0.85rem;
+              color: rgba(54,54,54,0.6);
+              padding: 0.5rem;
+              background: rgba(54,54,54,0.02);
+              border-radius: 4px;
+            `;
+            
+            // Selections info
+            const selectionsInfo = createElement('div');
+            selectionsInfo.textContent = `0 of ${spaceInfo.totalSelections} possible selections`;
+            selectionsInfo.style.cssText = `
+              font-size: 0.85rem;
+              color: rgba(54,54,54,0.6);
+              padding: 0.5rem;
+              background: rgba(54,54,54,0.02);
+              border-radius: 4px;
+            `;
+            
+            // Estimate time: ~1.5 min per question + ~2 min per selection
+            const estimatedMinutesPerQuestion = 1.5;
+            const estimatedMinutesPerSelection = 2;
+            const estimatedTime = Math.ceil(
+              (spaceInfo.totalQuestions * estimatedMinutesPerQuestion) + 
+              (spaceInfo.totalSelections * estimatedMinutesPerSelection)
+            );
+            const timeInfo = createElement('div');
+            timeInfo.textContent = `Estimated time: ~${estimatedTime} minute${estimatedTime !== 1 ? 's' : ''}`;
+            timeInfo.style.cssText = `
+              font-size: 0.85rem;
+              color: rgba(54,54,54,0.5);
+              font-style: italic;
+              padding: 0.5rem;
+            `;
+            
+            spaceContent.appendChild(questionsInfo);
+            spaceContent.appendChild(selectionsInfo);
+            spaceContent.appendChild(timeInfo);
+            
+            // Create collapsible section for this space
+            const spaceSection = createExpandableSection(space.name, spaceContent, false);
+            return spaceSection;
+          });
+          
+          // Wait for all spaces to be processed
+          const spaceSections = await Promise.all(spacePromises);
+          
+          // Append all space sections to content
+          spaceSections.forEach(section => {
+            upcomingSectionsContent.appendChild(section);
+          });
+          
+          // Create the main section after all spaces are added
+          return createExpandableSection('Upcoming Sections: Space Questions & Selections', upcomingSectionsContent, false);
+        };
+        
+        // Call async function and assign result
+        upcomingSectionsSection = await createSpaceSections();
+      }
+    }
+
+    contentContainer.appendChild(styleRoomSection);
+    if (shouldShowDesignSpecifics) {
+      contentContainer.appendChild(designSpecificsSection);
+    }
+    if (spaceCategoriesSection) {
+      contentContainer.appendChild(spaceCategoriesSection);
+    }
+    if (upcomingSectionsSection) {
+      contentContainer.appendChild(upcomingSectionsSection);
+    }
+
+    modal.appendChild(closeBtn);
+    modal.appendChild(title);
+    modal.appendChild(contentContainer);
+    overlay.appendChild(modal);
+
+    // Close on overlay click
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        overlay.remove();
+      }
+    });
+
+    // Close on Escape key
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        overlay.remove();
+        document.removeEventListener('keydown', handleEscape);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+
+    // Append to body
+    document.body.appendChild(overlay);
+  }
+
   function createMenuButton(handlers) {
     if (!handlers || typeof handlers.onRestart !== 'function') {
       return null;
@@ -1493,7 +2901,20 @@
       // Link will navigate naturally
     });
 
+    const progressButton = createElement('button', 'idsq-menu-item', {
+      type: 'button',
+      role: 'menuitem',
+    });
+    progressButton.textContent = 'View Progress';
+    progressButton.addEventListener('click', () => {
+      closeMenu();
+      if (typeof handlers.onShowProgress === 'function') {
+        handlers.onShowProgress();
+      }
+    });
+
     dropdown.appendChild(scheduleButton);
+    dropdown.appendChild(progressButton);
     dropdown.appendChild(startButton);
     dropdown.appendChild(restartSectionButton);
     menuWrapper.appendChild(trigger);
@@ -3858,19 +5279,19 @@
         box-shadow: 0 8px 30px rgba(44, 44, 44, 0.15);
       }
       .idsq-card-checkmark {
-        position: absolute;
-        top: 12px;
-        right: 12px;
+        position: relative;
+        top: 7px;
+        right: 4px;
         z-index: 10;
         pointer-events: none;
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 32px;
-        height: 32px;
+        width: 24px;
+        height: 24px;
         background: #006bea;
         border-radius: 50%;
-        box-shadow: 0 4px 12px rgba(0, 107, 234, 0.4);
+        box-shadow: 0 2px 8px rgba(0, 107, 234, 0.3);
         animation: checkmarkAppear 0.3s ease-out;
       }
       .idsq-card-checkmark svg {
@@ -6744,11 +8165,13 @@
     
     // Set up previous handler
     question._previousHandler = () => {
+      // questionsToShow already contains only visible questions, so questionIndex - 1 is correct
+      // When we navigate back, renderSpaceQuestions will recalculate questionsToShow based on current answers
       if (questionIndex > 0) {
-        // Go back to previous question in this space
+        // Go back to previous visible question in this space
         renderSpaceQuestions(spaceId, questionIndex - 1, config, mount, state, handlers, saveStateFn);
       } else {
-        // Go back to section gates
+        // No previous question, go back to section gates
         state.currentFlow = 'section-gates';
         state.currentSpaceIndex = state.spaceOrder ? state.spaceOrder.indexOf(spaceId) : 0;
         if (saveStateFn) saveStateFn(state);
@@ -6810,12 +8233,21 @@
           ? updatedCurrentCategoryQuestions[updatedCurrentCategoryQuestions.length - 1].index 
           : questionIndex;
         
+        // Find the current question's index in the updated questions array
+        // This handles cases where questions were filtered out after saving the answer
+        const currentQuestionId = question.id;
+        const updatedCurrentQuestionIndex = updatedQuestionsToShow.findIndex(q => q.id === currentQuestionId);
+        
         // Check if this was the last question in the current category (using updated calculation)
-        if (questionIndex === updatedLastQuestionInCategory && currentCategory) {
+        // Compare using the updated index, not the old questionIndex
+        if (updatedCurrentQuestionIndex >= 0 && updatedCurrentQuestionIndex === updatedLastQuestionInCategory && currentCategory) {
           // Category questions complete, route to materials selection for this category
           handlers.onCategoryQuestionsComplete(spaceId, currentCategory);
+        } else if (updatedCurrentQuestionIndex >= 0 && updatedCurrentQuestionIndex < updatedQuestionsToShow.length - 1) {
+          // Continue to next question in this space (using updated index)
+          renderSpaceQuestions(spaceId, updatedCurrentQuestionIndex + 1, config, mount, state, handlers, saveStateFn);
         } else {
-          // Continue to next question in this space
+          // Fallback: use original questionIndex + 1 if we can't find the question in updated array
           renderSpaceQuestions(spaceId, questionIndex + 1, config, mount, state, handlers, saveStateFn);
         }
       }
@@ -7801,45 +9233,55 @@
           savedState.completedCategories[spaceId] = [];
         }
       }
-      // CRITICAL: Validate completedCategories against actual materialsSelections
-      // If completedCategories has more entries than materialsSelections with finalSelection,
-      // it's corrupted and should be rebuilt from materialsSelections
-      if (savedState.materialsSelections && typeof savedState.materialsSelections === 'object') {
-        for (const spaceId in savedState.completedCategories) {
-          const completed = savedState.completedCategories[spaceId] || [];
-          // Count how many categories actually have completed materials selections
-          let actualCompletedCount = 0;
-          for (const categoryKey in savedState.materialsSelections) {
-            const [catSpaceId, categoryId] = categoryKey.split('_');
-            if (catSpaceId === spaceId) {
-              const categoryState = savedState.materialsSelections[categoryKey];
-              if (categoryState && categoryState.finalSelection && !categoryState.showConfirmation) {
-                actualCompletedCount++;
+      // CRITICAL: Always rebuild completedCategories from materialsSelections (source of truth)
+      // This ensures completedCategories is always in sync with actual material selections
+      if (!savedState.materialsSelections || typeof savedState.materialsSelections !== 'object' || Object.keys(savedState.materialsSelections).length === 0) {
+        // No materials selections exist at all - clear all completedCategories
+        savedState.completedCategories = {};
+      } else {
+        // Rebuild completedCategories from materialsSelections for all spaces
+        // This ensures consistency and prevents corruption
+        const rebuiltCompletedCategories = {};
+        
+        for (const categoryKey in savedState.materialsSelections) {
+          const [spaceId, categoryId] = categoryKey.split('_');
+          if (spaceId && categoryId) {
+            const categoryState = savedState.materialsSelections[categoryKey];
+            // Only count as completed if finalSelection exists and showConfirmation is false
+            if (categoryState && categoryState.finalSelection && !categoryState.showConfirmation) {
+              if (!rebuiltCompletedCategories[spaceId]) {
+                rebuiltCompletedCategories[spaceId] = [];
+              }
+              if (!rebuiltCompletedCategories[spaceId].includes(categoryId)) {
+                rebuiltCompletedCategories[spaceId].push(categoryId);
               }
             }
           }
-          // If completedCategories has way more entries than actual completed materials, it's corrupted
-          // Reset it and rebuild from materialsSelections
-          if (completed.length > actualCompletedCount + 2) { // Allow 2 extra for safety margin
-            console.warn('Detected corrupted completedCategories, rebuilding from materialsSelections:', {
-              spaceId: String(spaceId),
-              completedCount: String(completed.length),
-              actualCompletedCount: String(actualCompletedCount)
-            });
-            // Rebuild from materialsSelections
-            savedState.completedCategories[spaceId] = [];
-            for (const categoryKey in savedState.materialsSelections) {
-              const [catSpaceId, categoryId] = categoryKey.split('_');
-              if (catSpaceId === spaceId) {
-                const categoryState = savedState.materialsSelections[categoryKey];
-                if (categoryState && categoryState.finalSelection && !categoryState.showConfirmation) {
-                  if (!savedState.completedCategories[spaceId].includes(categoryId)) {
-                    savedState.completedCategories[spaceId].push(categoryId);
-                  }
-                }
-              }
+        }
+        
+        // Check if there was a mismatch (for logging purposes only)
+        let hadMismatch = false;
+        if (savedState.completedCategories && typeof savedState.completedCategories === 'object') {
+          for (const spaceId in savedState.completedCategories) {
+            const oldCompleted = savedState.completedCategories[spaceId] || [];
+            const newCompleted = rebuiltCompletedCategories[spaceId] || [];
+            if (oldCompleted.length !== newCompleted.length) {
+              hadMismatch = true;
+              break;
             }
           }
+        }
+        
+        // Always use the rebuilt version (source of truth)
+        savedState.completedCategories = rebuiltCompletedCategories;
+        
+        // Only log and save if there was a mismatch (meaning we fixed corruption)
+        // This prevents unnecessary localStorage writes while ensuring corruption is fixed
+        if (hadMismatch) {
+          console.log('Rebuilt completedCategories from materialsSelections to ensure consistency');
+          // Save the corrected state to localStorage to persist the fix
+          // Note: state and savedState share the same object reference, so state is already updated
+          saveState(state);
         }
       }
     }
@@ -8283,6 +9725,9 @@
         saveState(state);
         renderExpertIntro(config, mount, state, handlers);
       },
+      async onShowProgress() {
+        await renderProgressionTracker(config, mount, state);
+      },
       onSelectMaterials() {
         // Start expert-guided flow with intro
         state.currentFlow = 'expert-intro';
@@ -8469,7 +9914,9 @@
             reason: 'Category marked as Not Applicable or conditional logic indicates skip'
           });
           // Skip materials and go directly to next category
-          handlers.onContinueFromCategoryMaterials(spaceId, categoryId);
+          // IMPORTANT: Don't mark skipped categories as completed - they never went through materials selection
+          // Instead, find the next category and route there directly
+          handlers.onContinueFromCategoryMaterials(spaceId, categoryId, true); // Pass true to indicate skip
           return;
         }
         
@@ -8480,23 +9927,32 @@
         saveState(state);
         renderCategoryMaterials(spaceId, categoryId, config, mount, state, handlers, saveState);
       },
-      onContinueFromCategoryMaterials(spaceId, categoryId) {
+      onContinueFromCategoryMaterials(spaceId, categoryId, wasSkipped = false) {
         // Materials selection completed for a category, find next category's questions
         // Track completed categories - ONLY mark the specific category that was just completed
+        // IMPORTANT: Only mark as completed if materials were actually selected (not skipped)
+        
+        // Validate that categoryId is a string and not an array
+        const categoryToMark = Array.isArray(categoryId) ? categoryId[0] : categoryId;
+        
+        // IMPORTANT: Mark category as completed even if materials were skipped
+        // This ensures the category doesn't get selected again when finding the next category
+        // The questions for this category were still answered, so it should be considered "completed"
         if (!state.completedCategories) state.completedCategories = {};
         if (!state.completedCategories[spaceId]) state.completedCategories[spaceId] = [];
         
         // CRITICAL: Only add the category that was just completed, don't add all categories
-        // Validate that categoryId is a string and not an array
-        const categoryToMark = Array.isArray(categoryId) ? categoryId[0] : categoryId;
         if (categoryToMark && !state.completedCategories[spaceId].includes(categoryToMark)) {
           state.completedCategories[spaceId].push(categoryToMark);
           console.log('Marking category as completed:', {
             spaceId: String(spaceId),
             categoryId: String(categoryToMark),
+            wasSkipped: String(wasSkipped),
             completedCategoriesBefore: JSON.stringify([...state.completedCategories[spaceId]]),
             completedCategoriesAfter: JSON.stringify(state.completedCategories[spaceId])
           });
+          // Save state after marking category as completed
+          saveState(state);
         } else {
           console.warn('Category already marked as completed or invalid:', {
             spaceId: String(spaceId),
@@ -8507,10 +9963,18 @@
           });
         }
         
+        if (wasSkipped) {
+          console.log('Category materials were skipped, but category marked as completed (questions were answered):', {
+            spaceId: String(spaceId),
+            categoryId: String(categoryId)
+          });
+        }
+        
         console.log('onContinueFromCategoryMaterials called:', {
           spaceId: String(spaceId),
           categoryId: String(categoryId),
           categoryToMark: String(categoryToMark),
+          wasSkipped: String(wasSkipped),
           completedCategories: JSON.stringify(state.completedCategories[spaceId] || [])
         });
         
@@ -8580,7 +10044,20 @@
         
         // Iterate through selectedCategoriesForSpace in order to find the first uncompleted one
         for (const cat of selectedCategoriesForSpace) {
-          const isCompleted = completedCategories.includes(cat);
+          // Normalize category comparison - handle both full IDs (crown_moldings) and shortened names (crown)
+          // Check if category is completed by exact match OR if either name is a prefix of the other with underscore
+          // This handles legacy data where categories might have been stored as shortened names
+          const isCompleted = completedCategories.includes(cat) || 
+            completedCategories.some(completed => {
+              // Check if exact match, or if one is a prefix of the other (handles both directions)
+              // e.g., "crown_moldings" starts with "crown_", or "crown_moldings" starts with "crown_"
+              if (cat === completed) return true;
+              // If completed is shorter, check if cat starts with completed + underscore
+              if (cat.startsWith(completed + '_')) return true;
+              // If cat is shorter, check if completed starts with cat + underscore
+              if (completed.startsWith(cat + '_')) return true;
+              return false;
+            });
           const hasQuestions = questionsByCategory[cat] && questionsByCategory[cat].length > 0;
           const hasMaterials = config.materialsBySpace[spaceId]?.some(m => m.id === cat);
           
@@ -8589,7 +10066,8 @@
             hasQuestions: String(hasQuestions),
             questionsCount: String(questionsByCategory[cat]?.length || 0),
             hasMaterials: String(hasMaterials),
-            willSelect: String(!isCompleted && (hasQuestions || hasMaterials))
+            willSelect: String(!isCompleted && (hasQuestions || hasMaterials)),
+            completedCategories: JSON.stringify(completedCategories)
           });
           
           if (!isCompleted) {
