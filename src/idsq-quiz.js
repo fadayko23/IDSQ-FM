@@ -1539,8 +1539,8 @@
       const skipIcon = createElement('div', 'idsq-card-checkmark');
       skipIcon.innerHTML = `
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="12" cy="12" r="10" fill="#363636" opacity="0.1"/>
-          <path d="M12 8V12M12 16H12.01" stroke="#363636" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="12" cy="12" r="10" fill="#363636"/>
+          <path d="M12 8V12M12 16H12.01" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
           <circle cx="12" cy="12" r="9" stroke="#363636" stroke-width="1.5"/>
         </svg>
       `;
@@ -1798,7 +1798,10 @@
     visibleDesignSpecificsQuestions.forEach((question, index) => {
       const answer = jsonQuestionAnswers[question.id];
       const isCurrent = question.id === currentDesignSpecificsQuestionId;
-      const isSkipped = answer === 'NA' || answer === 'na';
+      // Check for skipped questions - handle various formats (NA, na, 'NA', null, empty string after skip)
+      const isSkipped = answer === 'NA' || answer === 'na' || answer === null || 
+                       (typeof answer === 'string' && answer.toLowerCase() === 'na') ||
+                       (answer === '' && jsonQuestionAnswers[`${question.id}_skipped`]);
       const hasAnswer = answer !== undefined && answer !== null && answer !== '' && !isSkipped;
       
       // Determine if this question comes after the current question
@@ -1890,12 +1893,13 @@
         }
         
         // Show checkmark if answered, skip icon if skipped
-        if (hasAnswer) {
-          const qaCheckmark = createCheckmarkIcon();
-          qaItem.appendChild(qaCheckmark);
-        } else if (isSkipped) {
+        // IMPORTANT: Check isSkipped FIRST, before hasAnswer, to ensure skipped questions show skip icon
+        if (isSkipped) {
           const qaSkip = createSkipIcon();
           qaItem.appendChild(qaSkip);
+        } else if (hasAnswer) {
+          const qaCheckmark = createCheckmarkIcon();
+          qaItem.appendChild(qaCheckmark);
         }
         
         const qaInfo = createElement('div');
@@ -1973,7 +1977,10 @@
         if (nextIndex < visibleDesignSpecificsQuestions.length) {
           const nextQuestion = visibleDesignSpecificsQuestions[nextIndex];
           const answer = jsonQuestionAnswers[nextQuestion.id];
-          const isSkipped = answer === 'NA' || answer === 'na';
+          // Check for skipped questions - handle various formats (NA, na, 'NA', null, empty string after skip)
+          const isSkipped = answer === 'NA' || answer === 'na' || answer === null || 
+                           (typeof answer === 'string' && answer.toLowerCase() === 'na') ||
+                           (answer === '' && jsonQuestionAnswers[`${nextQuestion.id}_skipped`]);
           const hasAnswer = answer !== undefined && answer !== null && answer !== '' && !isSkipped;
           
           // Format answer if it exists
@@ -2044,12 +2051,13 @@
           }
           
           // Show checkmark if answered, skip icon if skipped, empty space if upcoming
-          if (hasAnswer) {
-            const qaCheckmark = createCheckmarkIcon();
-            upcomingItem.appendChild(qaCheckmark);
-          } else if (isSkipped) {
+          // IMPORTANT: Check isSkipped FIRST, before hasAnswer, to ensure skipped questions show skip icon
+          if (isSkipped) {
             const qaSkip = createSkipIcon();
             upcomingItem.appendChild(qaSkip);
+          } else if (hasAnswer) {
+            const qaCheckmark = createCheckmarkIcon();
+            upcomingItem.appendChild(qaCheckmark);
           } else {
             const emptySpace = createElement('div');
             emptySpace.style.cssText = `
@@ -2766,10 +2774,12 @@
           }
           
           // Build context for filtering
+          // Use effective routeMode - if not set yet, assume 'deep' for counting purposes
+          const effectiveRouteMode = state.routeMode || state.jsonQuestionAnswers?.route_mode || 'deep';
           const context = {
             answers: jsonQuestionAnswers,
             jsonQuestionAnswers: jsonQuestionAnswers,
-            routeMode: state.routeMode || state.jsonQuestionAnswers?.route_mode,
+            routeMode: effectiveRouteMode,
             selectedCategories: state.selectedCategories,
             projectContext: state.projectContext
           };
@@ -2778,17 +2788,21 @@
           const visibleQuestions = filterQuestionsByConditions(allQuestions, context);
           
           // Filter by selected categories (if section gate has been completed)
+          // BUT: if no categories selected yet, we still want to show potential counts
+          // So we'll count all possible categories from the questions
           let questionsToShow = visibleQuestions.filter(q => {
             if (q.id && q.id.startsWith('section_gate_')) {
               return false;
             }
             if (selectedCategoriesForSpace.length > 0) {
+              // Categories have been selected - only show questions for selected categories
               if (q.category) {
                 return selectedCategoriesForSpace.includes(q.category);
               }
               return false;
             }
             // If no categories selected yet, show all questions (they'll be filtered by showIf)
+            // This allows us to count potential questions
             return true;
           });
           
@@ -2798,31 +2812,48 @@
           // Count total possible material selections (steps/rounds, not options)
           // Each category has 3 rounds of material selection (Step 1, Step 2, Step 3)
           let totalSelections = 0;
+          
+          // Get all possible categories for this space (from questions)
+          const allPossibleCategories = new Set();
+          visibleQuestions.forEach(q => {
+            if (q.category && q.category !== 'section_gate') {
+              allPossibleCategories.add(q.category);
+            }
+          });
+          
           if (config.materialsBySpace && config.materialsBySpace[spaceId]) {
-            // If categories are selected, count those; otherwise count all categories with materials
-            const categoriesToCount = selectedCategoriesForSpace.length > 0 
-              ? selectedCategoriesForSpace 
-              : config.materialsBySpace[spaceId].map(cat => cat.category || cat.id);
+            // Determine which categories to count
+            let categoriesToCount = [];
+            if (selectedCategoriesForSpace.length > 0) {
+              // Categories have been selected - count only those that have both questions AND materials
+              categoriesToCount = selectedCategoriesForSpace.filter(catId => {
+                // Must have questions
+                const hasQuestions = allPossibleCategories.has(catId);
+                // Must have materials configured
+                const hasMaterials = config.materialsBySpace[spaceId].some(cat => 
+                  (cat.category || cat.id) === catId
+                );
+                return hasQuestions && hasMaterials;
+              });
+            } else {
+              // No categories selected yet - count all categories that have BOTH questions AND materials configured
+              const categoriesWithMaterials = new Set(
+                config.materialsBySpace[spaceId].map(cat => cat.category || cat.id)
+              );
+              // Only count categories that exist in both sets
+              categoriesToCount = Array.from(allPossibleCategories).filter(catId => 
+                categoriesWithMaterials.has(catId)
+              );
+            }
             
             categoriesToCount.forEach(categoryId => {
-              const categoryMaterials = config.materialsBySpace[spaceId].find(cat => 
-                (cat.category || cat.id) === categoryId
-              );
-              if (categoryMaterials) {
-                // Each category has 3 rounds/steps of material selection
-                totalSelections += 3;
-              }
+              // Each category has 3 rounds/steps of material selection
+              totalSelections += 3;
             });
           } else {
             // If no materialsBySpace config, estimate based on categories from questions
-            const categoriesInQuestions = new Set();
-            questionsToShow.forEach(q => {
-              if (q.category && q.category !== 'section_gate') {
-                categoriesInQuestions.add(q.category);
-              }
-            });
             // Estimate 3 selection steps per category
-            totalSelections = categoriesInQuestions.size * 3;
+            totalSelections = allPossibleCategories.size * 3;
           }
           
           return { totalQuestions, totalSelections };
@@ -2879,10 +2910,12 @@
             // Count questions
             const allQuestions = loadSpaceQuestions(spaceId);
             if (allQuestions && Array.isArray(allQuestions)) {
+              // Use effective routeMode - if not set yet, assume 'deep' for counting purposes
+              const effectiveRouteMode = state.routeMode || state.jsonQuestionAnswers?.route_mode || 'deep';
               const context = {
                 answers: jsonQuestionAnswers,
                 jsonQuestionAnswers: jsonQuestionAnswers,
-                routeMode: state.routeMode || state.jsonQuestionAnswers?.route_mode,
+                routeMode: effectiveRouteMode,
                 selectedCategories: state.selectedCategories,
                 projectContext: state.projectContext
               };
@@ -2979,7 +3012,10 @@
               (remainingSelections * estimatedMinutesPerSelection)
             );
             const timeInfo = createElement('div');
-            if (estimatedTime > 0) {
+            // Only show "completed" if there are actually questions/selections to complete
+            if (spaceInfo.totalQuestions === 0 && spaceInfo.totalSelections === 0) {
+              timeInfo.textContent = 'No questions or selections configured for this space.';
+            } else if (estimatedTime > 0) {
               timeInfo.textContent = `Estimated time remaining: ~${estimatedTime} minute${estimatedTime !== 1 ? 's' : ''}`;
             } else {
               timeInfo.textContent = 'All questions and selections completed!';
@@ -7150,8 +7186,9 @@
           type: 'button',
         });
         
-        // Check if selected
-        const isSelected = Array.isArray(currentAnswer) && currentAnswer.includes(option.id);
+        // Check if selected (exclude 'NA' skipped answers)
+        const isSelected = currentAnswer !== 'NA' && currentAnswer !== 'na' && 
+                          Array.isArray(currentAnswer) && currentAnswer.includes(option.id);
         if (isSelected) {
           chip.classList.add('idsq-selected');
         }
@@ -7192,15 +7229,18 @@
       }
       
       // Continue/Skip button logic
-      const hasAnswer = Array.isArray(currentAnswer) && currentAnswer.length > 0;
+      // Check if answer is 'NA' (skipped) or has actual selections
+      const isSkipped = currentAnswer === 'NA' || currentAnswer === 'na';
+      const hasAnswer = !isSkipped && Array.isArray(currentAnswer) && currentAnswer.length > 0;
       
       if (!hasAnswer) {
         const skipButton = createElement('button', 'idsq-button idsq-button-secondary');
         skipButton.textContent = 'Skip';
         skipButton.addEventListener('click', () => {
-          state.jsonQuestionAnswers[question.id] = [];
+          // Save as 'NA' to indicate the question was skipped
+          state.jsonQuestionAnswers[question.id] = 'NA';
           if (saveStateFn) saveStateFn(state);
-          if (onAnswer) onAnswer(question.id, []);
+          if (onAnswer) onAnswer(question.id, 'NA');
           if (onContinue) onContinue();
         });
         navigation.appendChild(skipButton);
@@ -7255,9 +7295,10 @@
         const skipButton = createElement('button', 'idsq-button idsq-button-secondary');
         skipButton.textContent = 'Skip';
         skipButton.addEventListener('click', () => {
-          state.jsonQuestionAnswers[question.id] = null;
+          // Save as 'NA' to indicate the question was skipped
+          state.jsonQuestionAnswers[question.id] = 'NA';
           if (saveStateFn) saveStateFn(state);
-          if (onAnswer) onAnswer(question.id, null);
+          if (onAnswer) onAnswer(question.id, 'NA');
           if (onContinue) onContinue();
         });
         navigation.appendChild(skipButton);
@@ -7293,17 +7334,20 @@
         type: 'button',
       });
       
-      // Check if selected
+      // Check if selected (exclude 'NA' skipped answers)
       let isSelected = false;
-      if (isMultiSelect) {
-        if (Array.isArray(currentAnswer) && currentAnswer.includes(option.id)) {
-          card.classList.add('idsq-selected');
-          isSelected = true;
-        }
-      } else {
-        if (currentAnswer === option.id) {
-          card.classList.add('idsq-selected');
-          isSelected = true;
+      const isSkipped = currentAnswer === 'NA' || currentAnswer === 'na';
+      if (!isSkipped) {
+        if (isMultiSelect) {
+          if (Array.isArray(currentAnswer) && currentAnswer.includes(option.id)) {
+            card.classList.add('idsq-selected');
+            isSelected = true;
+          }
+        } else {
+          if (currentAnswer === option.id) {
+            card.classList.add('idsq-selected');
+            isSelected = true;
+          }
         }
       }
       
@@ -7432,9 +7476,11 @@
     // - For single-select: show if answered (but will auto-advance after selection)
     // - For multi-select: only show if at least one selection is made
     // - For section gates: allow continue even with empty selection (user can skip)
-    const hasAnswer = isMultiSelect 
+    // Exclude 'NA' (skipped) from hasAnswer check
+    const isSkipped = currentAnswer === 'NA' || currentAnswer === 'na';
+    const hasAnswer = !isSkipped && (isMultiSelect 
       ? (Array.isArray(currentAnswer) && currentAnswer.length > 0)
-      : (currentAnswer !== undefined && currentAnswer !== null);
+      : (currentAnswer !== undefined && currentAnswer !== null && currentAnswer !== ''));
     
     // For section gates, always show continue button (even if nothing selected)
     const isSectionGate = question.id && question.id.startsWith('section_gate_');
@@ -7444,10 +7490,10 @@
       const skipButton = createElement('button', 'idsq-button idsq-button-secondary');
       skipButton.textContent = 'Skip';
       skipButton.addEventListener('click', () => {
-        // Set answer to empty array or null to indicate skipped
-        state.jsonQuestionAnswers[question.id] = [];
+        // Save as 'NA' to indicate the question was skipped
+        state.jsonQuestionAnswers[question.id] = 'NA';
         if (saveStateFn) saveStateFn(state);
-        if (onAnswer) onAnswer(question.id, []);
+        if (onAnswer) onAnswer(question.id, 'NA');
         if (onContinue) onContinue();
       });
       navigation.appendChild(skipButton);
