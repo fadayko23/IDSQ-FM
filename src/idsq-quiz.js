@@ -1,7 +1,7 @@
 (function () {
   const DEFAULT_CONFIG = {
     mountSelector: '#idsq-root',
-    introVariant: 'classic', // 'classic' | 'guide-panel'
+    introVariant: 'guide-panel', // Only variant - guide-panel
     brand: {
       primaryColor: '#363636',
       accentColor: '#363636',
@@ -962,8 +962,10 @@
     // Category selection condition: { "selected": "section_gate_gi:flooring" }
     if (condition.selected) {
       const [gateId, categoryId] = condition.selected.split(':');
-      const selectedCategories = context.selectedCategories || context.projectContext?.selectedCategories || [];
-      return selectedCategories.includes(categoryId);
+      const selectedCategories = context.selectedCategories || context.projectContext?.selectedCategories || {};
+      // selectedCategories is an object: { "section_gate_gi": ["flooring", "baseboards", ...] }
+      const gateSelections = selectedCategories[gateId] || [];
+      return Array.isArray(gateSelections) && gateSelections.includes(categoryId);
     }
     
     // Previous answer condition: { "answerOf": "question_id", "in": ["answer1", "answer2"] }
@@ -1502,96 +1504,25 @@
   }
 
   function renderIntro(config, mount, handlers) {
-    if (config.introVariant === 'guide-panel') {
-      const section = createElement('section', 'idsq-quiz-hero');
+    // Only guide-panel variant is used
+    const section = createElement('section', 'idsq-quiz-hero');
 
-      const header = createElement('header', 'idsq-hero-header');
-      const eyebrow = createElement('p', 'idsq-eyebrow');
-      eyebrow.textContent = 'JL Coates Interior Design Studio';
-      const h1 = createElement('h1', 'idsq-hero-title');
-      h1.textContent = 'Interior Design Style Quiz';
-      const subtitle = createElement('p', 'idsq-subtitle');
-      subtitle.textContent = 'Discover your signature style in minutes—guided by our design expert.';
-      header.appendChild(eyebrow);
-      header.appendChild(h1);
-      header.appendChild(subtitle);
+    const header = createElement('header', 'idsq-hero-header');
+    const eyebrow = createElement('p', 'idsq-eyebrow');
+    eyebrow.textContent = 'JL Coates Interior Design Studio';
+    const h1 = createElement('h1', 'idsq-hero-title');
+    h1.textContent = 'Interior Design Style Quiz';
+    const subtitle = createElement('p', 'idsq-subtitle');
+    subtitle.textContent = 'Discover your signature style in minutes—guided by our design expert.';
+    header.appendChild(eyebrow);
+    header.appendChild(h1);
+    header.appendChild(subtitle);
 
-      // Start Quiz button positioned top right
-      const ctaWrap = createElement('div', 'idsq-cta-wrap');
-      const cta = createElement('button', 'idsq-button idsq-button-primary', { type: 'button', 'aria-label': 'Start the Interior Design Style Quiz' });
-      cta.textContent = config.copy.startButton || 'Start Quiz';
-      cta.addEventListener('click', handlers.onStart);
-      
-      // Add keyboard support: spacebar triggers start button
-      const handleKeyDown = (event) => {
-        if (event.key === ' ' || event.key === 'Spacebar') {
-          const activeElement = document.activeElement;
-          const isInputFocused = activeElement && (
-            activeElement.tagName === 'INPUT' ||
-            activeElement.tagName === 'TEXTAREA' ||
-            activeElement.isContentEditable
-          );
-          if (!isInputFocused && mount.contains(section)) {
-            event.preventDefault();
-            cta.click();
-          }
-        }
-      };
-      document.addEventListener('keydown', handleKeyDown);
-      section._keyboardCleanup = () => {
-        document.removeEventListener('keydown', handleKeyDown);
-      };
-      
-      ctaWrap.appendChild(cta);
-
-      const guidePanel = createElement('div', 'idsq-guide-panel');
-      const avatar = createElement('img', 'idsq-guide-avatar', {
-        src: config.copy.claraProfileUrl,
-        alt: 'Clara, your JL Coates interior design guide',
-        width: '112',
-        height: '112',
-        loading: 'eager',
-        decoding: 'async',
-        draggable: 'false',
-      });
-      avatar.addEventListener('contextmenu', (e) => e.preventDefault());
-      const guideCopy = createElement('div', 'idsq-guide-copy');
-      const introLine = createElement('p', 'idsq-guide-intro');
-      introLine.innerHTML = 'Hi! I\'m <strong>Clara</strong>, your interior design expert at <strong>JL Coates</strong>.';
-      const followLine = createElement('p');
-      followLine.innerHTML = 'I\'ll walk you through a <strong>personalized quiz</strong> to reveal your unique design style and curate a space you\'ll love—from finishes and furnishings to flow.';
-      guideCopy.appendChild(introLine);
-      guideCopy.appendChild(followLine);
-      guidePanel.appendChild(avatar);
-      guidePanel.appendChild(guideCopy);
-
-      section.appendChild(header);
-      section.appendChild(guidePanel);
-      section.appendChild(ctaWrap);
-      section.dataset.hideMenu = 'true';
-      showSection(mount, section, handlers);
-      return;
-    }
-
-    // classic (existing) intro
-    const intro = createElement('section', 'idsq-intro');
-    const claraWrapper = createElement('div', 'idsq-clara-profile-wrapper');
-    const claraProfile = createElement('img', 'idsq-clara-profile', {
-      src: config.copy.claraProfileUrl,
-      alt: 'Clara - Your Interior Design Expert',
-      draggable: 'false',
-    });
-    claraProfile.addEventListener('contextmenu', (e) => e.preventDefault());
-    claraWrapper.appendChild(claraProfile);
-    const title = createElement('h2', 'idsq-title');
-    title.textContent = config.copy.introTitle;
-    const description = createElement('p', 'idsq-description');
-    description.innerHTML = 'Hi! I\'m <strong>Clara</strong>, your interior design expert from JL Coates.';
-    const descriptionLine2 = createElement('p', 'idsq-description');
-    descriptionLine2.innerHTML = 'Let me guide you through a <strong>personalized quiz</strong> to discover your unique design style and curate the perfect space for you.';
-    const button = createElement('button', 'idsq-button idsq-button-primary');
-    button.textContent = config.copy.startButton;
-    button.addEventListener('click', handlers.onStart);
+    // Start Quiz button positioned top right
+    const ctaWrap = createElement('div', 'idsq-cta-wrap');
+    const cta = createElement('button', 'idsq-button idsq-button-primary', { type: 'button', 'aria-label': 'Start the Interior Design Style Quiz' });
+    cta.textContent = config.copy.startButton || 'Start Quiz';
+    cta.addEventListener('click', handlers.onStart);
     
     // Add keyboard support: spacebar triggers start button
     const handleKeyDown = (event) => {
@@ -1602,33 +1533,45 @@
           activeElement.tagName === 'TEXTAREA' ||
           activeElement.isContentEditable
         );
-        if (!isInputFocused && mount.contains(intro)) {
+        if (!isInputFocused && mount.contains(section)) {
           event.preventDefault();
-          button.click();
+          cta.click();
         }
       }
     };
     document.addEventListener('keydown', handleKeyDown);
-    intro._keyboardCleanup = () => {
+    section._keyboardCleanup = () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
     
-    intro.appendChild(claraWrapper);
-    intro.appendChild(title);
-    intro.appendChild(description);
-    intro.appendChild(descriptionLine2);
-    intro.appendChild(button);
-    if (config.brand.logoUrl) {
-      const logo = createElement('img', 'idsq-logo', {
-        src: config.brand.logoUrl,
-        alt: 'Brand logo',
-        draggable: 'false',
-      });
-      logo.addEventListener('contextmenu', (e) => e.preventDefault());
-      intro.insertBefore(logo, intro.firstChild);
-    }
-    intro.dataset.hideMenu = 'true';
-    showSection(mount, intro, handlers);
+    ctaWrap.appendChild(cta);
+
+    const guidePanel = createElement('div', 'idsq-guide-panel');
+    const avatar = createElement('img', 'idsq-guide-avatar', {
+      src: config.copy.claraProfileUrl,
+      alt: 'Clara, your JL Coates interior design guide',
+      width: '112',
+      height: '112',
+      loading: 'eager',
+      decoding: 'async',
+      draggable: 'false',
+    });
+    avatar.addEventListener('contextmenu', (e) => e.preventDefault());
+    const guideCopy = createElement('div', 'idsq-guide-copy');
+    const introLine = createElement('p', 'idsq-guide-intro');
+    introLine.innerHTML = 'Hi! I\'m <strong>Clara</strong>, your interior design expert at <strong>JL Coates</strong>.';
+    const followLine = createElement('p');
+    followLine.innerHTML = 'I\'ll walk you through a <strong>personalized quiz</strong> to reveal your unique design style and curate a space you\'ll love—from finishes and furnishings to flow and functionality.';
+    guideCopy.appendChild(introLine);
+    guideCopy.appendChild(followLine);
+    guidePanel.appendChild(avatar);
+    guidePanel.appendChild(guideCopy);
+
+    section.appendChild(header);
+    section.appendChild(guidePanel);
+    section.appendChild(ctaWrap);
+    section.dataset.hideMenu = 'true';
+    showSection(mount, section, handlers);
   }
 
   function isNameValid(name) {
@@ -3268,29 +3211,21 @@
     });
     scheduleButton.textContent = 'Schedule';
     
-    // For Whole Home, show "Continue" button to proceed to Expert Intro → Global Questions → Materials
-    // For single spaces, show "Select Materials" button
-    if (state.selectedSpace === 'general') {
-      const continueButton = createElement('button', 'idsq-button idsq-button-secondary');
-      continueButton.textContent = 'Continue';
-      continueButton.addEventListener('click', () => {
-        state.currentFlow = 'expert-intro';
-        state.projectContext = state.projectContext || {};
-        state.currentExpert = 'aria';
-        state.currentExpertQuestion = 0;
-        state.materialsSelections = {};
-        if (handlers._saveState) handlers._saveState(state);
-        renderExpertIntro(config, mount, state, handlers);
-      });
-      buttonContainer.appendChild(scheduleButton);
-      buttonContainer.appendChild(continueButton);
-    } else {
-      const selectMaterialsButton = createElement('button', 'idsq-button idsq-button-secondary');
-      selectMaterialsButton.textContent = 'Select Materials';
-      selectMaterialsButton.addEventListener('click', () => handlers.onSelectMaterials());
-      buttonContainer.appendChild(scheduleButton);
-      buttonContainer.appendChild(selectMaterialsButton);
-    }
+    // For Whole Home and single spaces, show "Continue" button to proceed to Expert Intro → Global Questions → Section Gates → Materials
+    // This ensures all pathways go through the same flow
+    const continueButton = createElement('button', 'idsq-button idsq-button-secondary');
+    continueButton.textContent = 'Continue';
+    continueButton.addEventListener('click', () => {
+      state.currentFlow = 'expert-intro';
+      state.projectContext = state.projectContext || {};
+      state.currentExpert = 'aria';
+      state.currentExpertQuestion = 0;
+      state.materialsSelections = {};
+      if (handlers._saveState) handlers._saveState(state);
+      renderExpertIntro(config, mount, state, handlers);
+    });
+    buttonContainer.appendChild(scheduleButton);
+    buttonContainer.appendChild(continueButton);
 
     section.appendChild(title);
     section.appendChild(card);
@@ -3561,6 +3496,18 @@
         max-width: 800px;
         margin-left: auto;
         margin-right: auto;
+      }
+      .idsq-option-grid.idsq-grid-six-items {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
+        max-width: 1000px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      @media (max-width: 960px) {
+        .idsq-option-grid.idsq-grid-six-items {
+          grid-template-columns: repeat(2, 1fr);
+        }
       }
       .idsq-options-grid {
         display: grid;
@@ -4112,8 +4059,16 @@
       }
       .idsq-option-title {
         font-size: 1.2rem;
+        font-weight: 900;
         margin: 0;
         color: var(--idsq-text);
+      }
+      .idsq-option-subtitle {
+        font-size: 0.95rem;
+        font-weight: 600;
+        margin: 0.35rem 0 0 0;
+        color: rgba(54, 54, 54, 0.7);
+        opacity: 0.9;
       }
       .idsq-option-description {
         font-weight: 500;
@@ -4553,6 +4508,9 @@
         .idsq-option-grid.idsq-grid-four-items {
           grid-template-columns: 1fr;
         }
+        .idsq-option-grid.idsq-grid-six-items {
+          grid-template-columns: 1fr;
+        }
         .idsq-final-grid {
           grid-template-columns: 1fr;
         }
@@ -4932,13 +4890,23 @@
     const isMultiSelect = question.type === 'multi';
     
     // Title - remove "(Select all that apply)" variations if present
+    // Also handle dynamic style name replacement for ds_style_alignment question
     const title = createElement('h2', 'idsq-title');
     let promptText = question.prompt || '';
+    
+    // Replace {STYLE_NAME} placeholder with actual style name if available
+    if (promptText.includes('{STYLE_NAME}') && state.finalStyle && state.finalStyle.styleName) {
+      promptText = promptText.replace('{STYLE_NAME}', state.finalStyle.styleName);
+    }
+    
     // Match variations: "(Select all that apply)", "(Select all that apply.)", "(Select All That Apply)", etc.
     // Case-insensitive, optional period, flexible spacing
     const selectAllRegex = /\([Ss]elect\s+all\s+that\s+apply\.?\)/gi;
     const selectAllMatch = promptText.match(selectAllRegex);
+    let selectAllText = null;
     if (selectAllMatch) {
+      // Extract the matched text (use first match, remove period if present)
+      selectAllText = selectAllMatch[0].replace(/\.$/, '');
       // Remove all matches using replace with global flag
       promptText = promptText.replace(selectAllRegex, '').trim();
       // Clean up any double spaces or trailing/leading spaces
@@ -4947,15 +4915,21 @@
     title.textContent = promptText;
     section.appendChild(title);
     
-    // Description - add "(Select all that apply)" in bold at the end if it was in the prompt
-    if (question.description || selectAllMatch) {
+    // Subtitle - show "(Select all that apply)" between title and description if it was in the prompt
+    if (selectAllText) {
+      const subtitle = createElement('p', 'idsq-subtitle');
+      // Bold the text and ensure no period
+      const cleanText = selectAllText.replace(/\.$/, '');
+      subtitle.innerHTML = `<strong>${cleanText}</strong>`;
+      section.appendChild(subtitle);
+    }
+    
+    // Description - render with HTML support for bold markdown
+    if (question.description) {
       const description = createElement('p', 'idsq-description');
-      let descText = question.description || '';
-      if (selectAllMatch && isMultiSelect) {
-        // Add "Select all that apply" in bold at the end (without period for consistency)
-        descText = descText ? descText + ' <strong>(Select all that apply)</strong>' : '<strong>(Select all that apply)</strong>';
-      }
-      description.innerHTML = descText;
+      // Convert markdown bold (**text**) to HTML <strong> tags
+      let descHtml = question.description.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      description.innerHTML = descHtml;
       section.appendChild(description);
     }
     
@@ -4965,6 +4939,8 @@
       grid.classList.add('idsq-grid-two-items');
     } else if (question.options && question.options.length === 4) {
       grid.classList.add('idsq-grid-four-items');
+    } else if (question.options && question.options.length === 6) {
+      grid.classList.add('idsq-grid-six-items');
     }
     
     question.options.forEach((option) => {
@@ -4988,12 +4964,33 @@
         if (isMultiSelect) {
           // Toggle selection for multi-select
           const current = state.jsonQuestionAnswers[question.id] || [];
-          const newAnswer = current.includes(option.id)
-            ? current.filter(id => id !== option.id)
-            : [...current, option.id];
-          state.jsonQuestionAnswers[question.id] = newAnswer;
+          
+          // Special handling for "none" option - make it exclusive
+          if (option.id === 'none') {
+            if (current.includes('none')) {
+              // Deselecting "none" - just remove it
+              state.jsonQuestionAnswers[question.id] = current.filter(id => id !== 'none');
+            } else {
+              // Selecting "none" - deselect all others
+              state.jsonQuestionAnswers[question.id] = ['none'];
+            }
+          } else {
+            // For other options, if "none" is selected, deselect it first
+            let newAnswer;
+            if (current.includes('none')) {
+              // Remove "none" and add the new option
+              newAnswer = [option.id];
+            } else {
+              // Normal toggle
+              newAnswer = current.includes(option.id)
+                ? current.filter(id => id !== option.id)
+                : [...current, option.id];
+            }
+            state.jsonQuestionAnswers[question.id] = newAnswer;
+          }
+          
           if (saveStateFn) saveStateFn(state);
-          if (onAnswer) onAnswer(question.id, newAnswer);
+          if (onAnswer) onAnswer(question.id, state.jsonQuestionAnswers[question.id]);
           // Re-render to update UI
           renderJSONQuestion(question, config, mount, state, handlers, saveStateFn, onAnswer, onContinue);
         } else {
@@ -5023,8 +5020,27 @@
       
       const label = createElement('div', 'idsq-option-label');
       const optionTitle = createElement('h3', 'idsq-option-title');
-      optionTitle.textContent = option.name;
+      
+      // Extract parenthetical text from option name and move to subtitle
+      let optionNameText = option.name || '';
+      const parentheticalMatch = optionNameText.match(/\(([^)]+)\)/);
+      let subtitleText = null;
+      
+      if (parentheticalMatch) {
+        // Remove parenthetical from title
+        optionNameText = optionNameText.replace(/\s*\([^)]+\)\s*/, '').trim();
+        subtitleText = parentheticalMatch[1];
+      }
+      
+      optionTitle.textContent = optionNameText;
       label.appendChild(optionTitle);
+      
+      // Add subtitle if parenthetical text was found
+      if (subtitleText) {
+        const optionSubtitle = createElement('p', 'idsq-option-subtitle');
+        optionSubtitle.textContent = subtitleText;
+        label.appendChild(optionSubtitle);
+      }
       
       // Support both 'description' and 'desc' fields for flexibility
       const optionDesc = option.description || option.desc;
@@ -5043,19 +5059,56 @@
     // Navigation
     const navigation = createElement('div', 'idsq-step-navigation');
     
+    // Previous button - store the previous handler on the question object
+    if (question._previousHandler) {
+      const previousButton = createElement('button', 'idsq-button idsq-button-secondary');
+      previousButton.textContent = 'Previous';
+      previousButton.addEventListener('click', () => {
+        question._previousHandler();
+      });
+      navigation.appendChild(previousButton);
+    }
+    
     // Continue button logic:
     // - For single-select: show if answered (but will auto-advance after selection)
-    // - For multi-select: always show (user must click to continue)
+    // - For multi-select: only show if at least one selection is made
     const hasAnswer = isMultiSelect 
       ? (Array.isArray(currentAnswer) && currentAnswer.length > 0)
       : (currentAnswer !== undefined && currentAnswer !== null);
     
-    // Always show continue button for multi-select, or for single-select if answered
-    if (isMultiSelect || hasAnswer) {
+    // Skip button for multi-select questions (only show when no selections made)
+    if (isMultiSelect && !hasAnswer) {
+      const skipButton = createElement('button', 'idsq-button idsq-button-secondary');
+      skipButton.textContent = 'Skip';
+      skipButton.addEventListener('click', () => {
+        // Set answer to empty array or null to indicate skipped
+        state.jsonQuestionAnswers[question.id] = [];
+        if (saveStateFn) saveStateFn(state);
+        if (onAnswer) onAnswer(question.id, []);
+        if (onContinue) onContinue();
+      });
+      navigation.appendChild(skipButton);
+    }
+    
+    // Only show continue button if there's an answer (selection made)
+    if (hasAnswer) {
       const continueButton = createElement('button', 'idsq-button idsq-button-primary');
       continueButton.textContent = 'Continue';
       continueButton.addEventListener('click', () => {
-        if (onContinue) onContinue();
+        // Check if any selected options require URLs
+        const selectedOptions = isMultiSelect 
+          ? (currentAnswer || []).map(id => question.options.find(opt => opt.id === id)).filter(Boolean)
+          : [question.options.find(opt => opt.id === currentAnswer)].filter(Boolean);
+        
+        const optionsRequiringUrls = selectedOptions.filter(opt => opt && opt.requiresUrl);
+        
+        if (optionsRequiringUrls.length > 0) {
+          // Show URL input page
+          renderURLInputsPage(question, optionsRequiringUrls, config, mount, state, handlers, saveStateFn, onContinue);
+        } else {
+          // No URLs needed, proceed normally
+          if (onContinue) onContinue();
+        }
       });
       navigation.appendChild(continueButton);
       
@@ -5086,6 +5139,276 @@
   }
 
   /**
+   * Validates a URL to ensure it's clean and safe
+   * @param {string} url - URL to validate
+   * @returns {Object} - { valid: boolean, error: string|null }
+   */
+  function validateURL(url) {
+    // URLs are optional - only validate if provided
+    if (!url || !url.trim()) {
+      return { valid: true, error: null };
+    }
+    
+    const trimmedUrl = url.trim();
+    
+    // Basic URL format check
+    try {
+      const urlObj = new URL(trimmedUrl);
+      const hostname = urlObj.hostname.toLowerCase();
+      
+      // Block common spam/pornographic domains (basic list - can be expanded)
+      const blockedDomains = [
+        'porn', 'xxx', 'adult', 'sex', 'spam', 'malware', 'phishing',
+        'bit.ly', 'tinyurl.com', 't.co' // Shorteners can be risky
+      ];
+      
+      for (const blocked of blockedDomains) {
+        if (hostname.includes(blocked)) {
+          return { valid: false, error: 'This URL is not allowed' };
+        }
+      }
+      
+      // Check for allowed domains based on option type
+      // This is a basic check - Pinterest URLs should contain pinterest.com, etc.
+      // We'll be more permissive but log for review
+      
+      return { valid: true, error: null };
+    } catch (e) {
+      // Not a valid URL format
+      return { valid: false, error: 'Please enter a valid URL (e.g., https://example.com)' };
+    }
+  }
+
+  /**
+   * Renders a page for collecting URLs for selected options
+   * @param {Object} question - The original question object
+   * @param {Array} optionsRequiringUrls - Array of option objects that require URLs
+   * @param {Object} config - Quiz config
+   * @param {HTMLElement} mount - Mount element
+   * @param {Object} state - Current state
+   * @param {Object} handlers - Event handlers
+   * @param {Function} saveStateFn - Function to save state
+   * @param {Function} onContinue - Callback to continue after URLs are collected
+   */
+  function renderURLInputsPage(question, optionsRequiringUrls, config, mount, state, handlers, saveStateFn, onContinue) {
+    const section = createElement('section', 'idsq-step');
+    
+    const title = createElement('h2', 'idsq-title');
+    title.textContent = 'Add Your Reference Links';
+    section.appendChild(title);
+    
+    const description = createElement('p', 'idsq-description');
+    description.textContent = 'Please provide the URLs for your selected inspiration sources. All fields are optional.';
+    section.appendChild(description);
+    
+    const form = createElement('form', 'idsq-form');
+    
+    // Initialize URL storage in state if not exists
+    if (!state.jsonQuestionUrls) {
+      state.jsonQuestionUrls = {};
+    }
+    if (!state.jsonQuestionUrls[question.id]) {
+      state.jsonQuestionUrls[question.id] = {};
+    }
+    
+    const urlInputs = {};
+    
+    // Helper function to get description for each option type
+    const getOptionDescription = (optionId) => {
+      const descriptions = {
+        pinterest: 'Paste the URL to your Pinterest board or pin set.',
+        instagram: 'Paste the URL to your Instagram post or reel.',
+        magazines: 'Paste the URL to the digital magazine article or editorial.',
+        portfolio: 'Paste the URL to your designer\'s portfolio or project page.',
+        houzz: 'Paste the URL to your Houzz ideabook or project photos.'
+      };
+      return descriptions[optionId] || 'Paste the URL to your reference.';
+    };
+    
+    optionsRequiringUrls.forEach((option) => {
+      const field = createElement('div', 'idsq-field');
+      
+      const label = createElement('label', 'idsq-field-label');
+      label.textContent = `${option.urlLabel || option.name} (Optional)`;
+      field.appendChild(label);
+      
+      const input = createElement('input', 'idsq-input', {
+        type: 'url',
+        placeholder: `https://${option.id === 'pinterest' ? 'pinterest.com' : option.id === 'instagram' ? 'instagram.com' : option.id === 'houzz' ? 'houzz.com' : 'example.com'}/...`,
+        value: state.jsonQuestionUrls[question.id][option.id] || '',
+      });
+      input.name = `${question.id}_${option.id}_url`;
+      input.id = `${question.id}_${option.id}_url`;
+      
+      const helpText = createElement('p', 'idsq-description');
+      helpText.style.fontSize = '0.9rem';
+      helpText.style.marginTop = '0.5rem';
+      helpText.style.marginBottom = '1rem';
+      helpText.style.textAlign = 'left';
+      helpText.textContent = getOptionDescription(option.id);
+      
+      const errorMsg = createElement('p', 'idsq-input-error');
+      errorMsg.style.display = 'none';
+      
+      input.addEventListener('blur', () => {
+        const validation = validateURL(input.value);
+        if (input.value.trim() && !validation.valid) {
+          errorMsg.textContent = validation.error;
+          errorMsg.style.display = 'block';
+          input.style.borderColor = '#ef4444';
+        } else {
+          errorMsg.style.display = 'none';
+          input.style.borderColor = '';
+          // Save URL to state
+          if (input.value.trim()) {
+            state.jsonQuestionUrls[question.id][option.id] = input.value.trim();
+          } else {
+            delete state.jsonQuestionUrls[question.id][option.id];
+          }
+          if (saveStateFn) saveStateFn(state);
+        }
+      });
+      
+      input.addEventListener('input', () => {
+        // Clear error on input
+        if (errorMsg.style.display !== 'none') {
+          errorMsg.style.display = 'none';
+          input.style.borderColor = '';
+        }
+      });
+      
+      urlInputs[option.id] = input;
+      
+      field.appendChild(input);
+      field.appendChild(helpText);
+      field.appendChild(errorMsg);
+      form.appendChild(field);
+    });
+    
+    section.appendChild(form);
+    
+    // Navigation
+    const navigation = createElement('div', 'idsq-step-navigation');
+    
+    // Previous button
+    const previousButton = createElement('button', 'idsq-button idsq-button-secondary');
+    previousButton.textContent = 'Previous';
+    previousButton.addEventListener('click', () => {
+      // Go back to the question selection page
+      // Use the question's previous handler if available, otherwise render the question directly
+      if (question._previousHandler) {
+        question._previousHandler();
+      } else {
+        renderJSONQuestion(question, config, mount, state, handlers, saveStateFn, 
+          (questionId, answer) => {
+            if (onAnswer) onAnswer(questionId, answer);
+          },
+          onContinue
+        );
+      }
+    });
+    navigation.appendChild(previousButton);
+    
+    // Function to check if any URLs are provided (will be called dynamically)
+    const checkHasAnyUrl = () => {
+      return optionsRequiringUrls.some(option => {
+        const input = urlInputs[option.id];
+        return input && input.value.trim();
+      });
+    };
+    
+    // Update button visibility based on URL inputs
+    const updateButtonVisibility = () => {
+      const hasAnyUrl = checkHasAnyUrl();
+      if (hasAnyUrl) {
+        // Show Continue, hide Skip
+        if (continueButton && continueButton.parentElement) {
+          continueButton.style.display = '';
+        }
+        if (skipButton && skipButton.parentElement) {
+          skipButton.style.display = 'none';
+        }
+      } else {
+        // Show Skip, hide Continue
+        if (continueButton && continueButton.parentElement) {
+          continueButton.style.display = 'none';
+        }
+        if (skipButton && skipButton.parentElement) {
+          skipButton.style.display = '';
+        }
+      }
+    };
+    
+    // Create both buttons but show/hide based on URLs
+    const continueButton = createElement('button', 'idsq-button idsq-button-primary');
+    continueButton.textContent = 'Continue';
+    continueButton.addEventListener('click', () => {
+      // Validate all URLs before continuing (URLs are optional, but if provided must be valid)
+      let allValid = true;
+      optionsRequiringUrls.forEach((option) => {
+        const input = urlInputs[option.id];
+        if (input && input.value.trim()) {
+          const validation = validateURL(input.value);
+          if (!validation.valid) {
+            allValid = false;
+            const errorMsg = input.parentElement.querySelector('.idsq-input-error');
+            if (errorMsg) {
+              errorMsg.textContent = validation.error;
+              errorMsg.style.display = 'block';
+              input.style.borderColor = '#ef4444';
+            }
+          } else {
+            // Save valid URL
+            state.jsonQuestionUrls[question.id][option.id] = input.value.trim();
+          }
+        } else {
+          // No URL provided - remove from state
+          if (state.jsonQuestionUrls[question.id]) {
+            delete state.jsonQuestionUrls[question.id][option.id];
+          }
+        }
+      });
+      
+      if (allValid) {
+        if (saveStateFn) saveStateFn(state);
+        if (onContinue) onContinue();
+      }
+    });
+    
+    const skipButton = createElement('button', 'idsq-button idsq-button-secondary');
+    skipButton.textContent = 'Skip';
+    skipButton.addEventListener('click', () => {
+      // If no URLs provided, change selection to "none" (No External References)
+      state.jsonQuestionAnswers[question.id] = ['none'];
+      // Clear any URLs
+      if (state.jsonQuestionUrls[question.id]) {
+        state.jsonQuestionUrls[question.id] = {};
+      }
+      if (saveStateFn) saveStateFn(state);
+      if (onContinue) onContinue();
+    });
+    
+    // Add input listeners to update button visibility
+    optionsRequiringUrls.forEach((option) => {
+      const input = urlInputs[option.id];
+      if (input) {
+        input.addEventListener('input', () => {
+          updateButtonVisibility();
+        });
+      }
+    });
+    
+    // Initial button visibility
+    updateButtonVisibility();
+    navigation.appendChild(continueButton);
+    navigation.appendChild(skipButton);
+    
+    section.appendChild(navigation);
+    
+    showSection(mount, section, handlers);
+  }
+
+  /**
    * Renders global questions from JSON config
    * @param {Array} questions - Array of question objects
    * @param {number} questionIndex - Current question index
@@ -5109,15 +5432,33 @@
     // Filter questions based on current state
     const visibleQuestions = filterQuestionsByConditions(questions, context);
     
+    // Save current question index to state for resume functionality
+    state.jsonQuestionIndex = questionIndex;
+    if (saveStateFn) saveStateFn(state);
+    
     // Check if we've completed all visible questions
     if (questionIndex >= visibleQuestions.length) {
       // All global questions answered, proceed to next flow
+      state.jsonQuestionIndex = null; // Clear index when done
       if (saveStateFn) saveStateFn(state);
       handlers.onContinueFromGlobalQuestions();
       return;
     }
     
     const question = visibleQuestions[questionIndex];
+    
+    // Set up previous handler for this question
+    question._previousHandler = () => {
+      if (questionIndex > 0) {
+        // Go back to previous question
+        renderGlobalQuestions(questions, questionIndex - 1, config, mount, state, handlers, saveStateFn);
+      } else {
+        // If first question, go back to expert intro
+        if (handlers.onGoBack) {
+          handlers.onGoBack();
+        }
+      }
+    };
     
     // Render the question
     renderJSONQuestion(
@@ -5156,7 +5497,311 @@
     );
   }
 
+  /**
+   * Loads space-specific questions from window objects
+   * @param {string} spaceId - Space ID (e.g., 'kitchen', 'bedroom', 'living-room')
+   * @returns {Array} - Array of question objects, or empty array if not found
+   */
+  function loadSpaceQuestions(spaceId) {
+    // Normalize space ID to handle variations
+    const normalizedId = normalizeSpaceId(spaceId);
+    
+    // Map normalized space IDs to window object names
+    // Handle both direct matches and variations (e.g., "bedroom", "primary-bedroom", "nursery")
+    const spaceMap = {
+      'kitchen': window.KITCHEN_DEEPDIVE || window.KITCHEN,
+      'living-room': window.LIVING_ROOM_DEEPDIVE || window.LIVING_ROOM,
+      'livingroom': window.LIVING_ROOM_DEEPDIVE || window.LIVING_ROOM,
+      'bedroom': window.BEDROOM_DEEPDIVE || window.BEDROOM,
+      'primary-bedroom': window.BEDROOM_DEEPDIVE || window.BEDROOM,
+      'primarybedroom': window.BEDROOM_DEEPDIVE || window.BEDROOM,
+      'nursery': window.BEDROOM_DEEPDIVE || window.BEDROOM, // Nursery uses bedroom questions
+      'general-interior': window.GENERAL_INTERIOR_DEEPDIVE || window.GENERAL_INTERIOR,
+      'generalinterior': window.GENERAL_INTERIOR_DEEPDIVE || window.GENERAL_INTERIOR,
+      'general-exterior': window.GENERAL_EXTERIOR_DEEPDIVE || window.GENERAL_EXTERIOR,
+      'generalexterior': window.GENERAL_EXTERIOR_DEEPDIVE || window.GENERAL_EXTERIOR,
+      'bathroom': null, // Not yet implemented
+      'primary-bathroom': null, // Not yet implemented
+      'office': null, // Not yet implemented
+    };
+    
+    // Try exact match first, then normalized match
+    let questions = spaceMap[spaceId] || spaceMap[normalizedId];
+    
+    // If still not found and it contains "bedroom" or "nursery", use bedroom questions
+    if (!questions && (normalizedId.includes('bedroom') || normalizedId.includes('nursery'))) {
+      questions = window.BEDROOM_DEEPDIVE || window.BEDROOM;
+    }
+    
+    // If still not found and it contains "kitchen", use kitchen questions
+    if (!questions && normalizedId.includes('kitchen')) {
+      questions = window.KITCHEN_DEEPDIVE || window.KITCHEN;
+    }
+    
+    // If still not found and it contains "living", use living room questions
+    if (!questions && normalizedId.includes('living')) {
+      questions = window.LIVING_ROOM_DEEPDIVE || window.LIVING_ROOM;
+    }
+    
+    if (!questions || !Array.isArray(questions)) {
+      return [];
+    }
+    
+    // Flatten the questions array (questions may be nested in category objects)
+    const flattened = [];
+    questions.forEach(item => {
+      if (item.questions && Array.isArray(item.questions)) {
+        // This is a category object with nested questions
+        // Include the nested questions
+        item.questions.forEach(q => {
+          // Preserve category context if needed
+          if (!q.category && item.category) {
+            q.category = item.category;
+          }
+          flattened.push(q);
+        });
+      } else if (item.id || item.prompt) {
+        // This is a question object itself (like section_gate_gi in general-interior.js)
+        flattened.push(item);
+      }
+    });
+    
+    return flattened;
+  }
+
+  /**
+   * Finds section gate question for a space
+   * @param {string} spaceId - Space ID
+   * @returns {Object|null} - Section gate question object, or null if not found
+   */
+  function findSectionGateQuestion(spaceId) {
+    const allQuestions = loadSpaceQuestions(spaceId);
+    // Section gate questions have id starting with "section_gate_"
+    // They can be nested in category objects or be direct questions
+    return allQuestions.find(q => q.id && q.id.startsWith('section_gate_')) || null;
+  }
+
+  /**
+   * Renders section gates for all selected spaces
+   * @param {Object} config - Quiz config
+   * @param {HTMLElement} mount - Mount element
+   * @param {Object} state - Current state
+   * @param {Object} handlers - Event handlers
+   * @param {Function} saveStateFn - Function to save state
+   */
+  function renderSectionGates(config, mount, state, handlers, saveStateFn) {
+    state.currentFlow = 'section-gates';
+    if (saveStateFn) saveStateFn(state);
+    
+    // Get selected spaces from state
+    const spacesRequested = state.spacesRequested || [];
+    if (!Array.isArray(spacesRequested) || spacesRequested.length === 0) {
+      // No spaces selected, go directly to materials
+      handlers.onContinueFromSectionGates();
+      return;
+    }
+    
+    // Initialize space order and gate index if not set
+    if (!state.spaceOrder || state.spaceOrder.length === 0) {
+      // Create space order from spacesRequested
+      state.spaceOrder = spacesRequested.map(s => normalizeSpaceId(s.id || s));
+      state.currentSpaceIndex = 0;
+      if (saveStateFn) saveStateFn(state);
+    }
+    
+    const currentSpaceIndex = state.currentSpaceIndex || 0;
+    if (currentSpaceIndex >= state.spaceOrder.length) {
+      // All section gates completed
+      handlers.onContinueFromSectionGates();
+      return;
+    }
+    
+    const currentSpaceId = state.spaceOrder[currentSpaceIndex];
+    const sectionGate = findSectionGateQuestion(currentSpaceId);
+    
+    if (!sectionGate) {
+      // No section gate for this space, skip to next space
+      state.currentSpaceIndex = currentSpaceIndex + 1;
+      if (saveStateFn) saveStateFn(state);
+      renderSectionGates(config, mount, state, handlers, saveStateFn);
+      return;
+    }
+    
+    // Build context for condition evaluation
+    const context = {
+      projectType: state.projectType || state.jsonQuestionAnswers?.project_type,
+      buildType: state.buildType || state.jsonQuestionAnswers?.build_type,
+      routeMode: state.routeMode || state.jsonQuestionAnswers?.route_mode,
+      answers: state.jsonQuestionAnswers || {},
+      jsonQuestionAnswers: state.jsonQuestionAnswers || {},
+      projectContext: state.projectContext || {},
+      selectedCategories: state.selectedCategories || {},
+    };
+    
+    // For section gates, we want to show them for all route modes
+    // But if the gate has a routeMode condition, we need to check it
+    // However, for Express and Standard, we still want to show gates (they just skip detailed questions)
+    // So we'll show the gate if:
+    // 1. It has no routeMode condition, OR
+    // 2. Its routeMode condition matches the current routeMode, OR
+    // 3. It's Express/Standard and the gate condition includes those modes (or has no routeMode condition)
+    
+    // Check if section gate should be shown
+    // For section gates, we want to show them for Express/Standard/Deep, but the questions themselves filter by routeMode
+    // So we'll bypass the routeMode check for section gates themselves
+    const gateContext = { ...context };
+    // Temporarily set routeMode to 'deep' for section gate evaluation, since gates should show for all modes
+    // The actual questions will filter by routeMode later
+    const originalRouteMode = gateContext.routeMode;
+    gateContext.routeMode = 'deep'; // Force section gates to show for all route modes
+    
+    const shouldShowGate = !sectionGate.showIf || evaluateQuestionCondition(sectionGate.showIf, gateContext);
+    
+    // Restore original routeMode
+    gateContext.routeMode = originalRouteMode;
+    
+    if (!shouldShowGate) {
+      // Section gate not applicable, skip to next space
+      state.currentSpaceIndex = currentSpaceIndex + 1;
+      if (saveStateFn) saveStateFn(state);
+      renderSectionGates(config, mount, state, handlers, saveStateFn);
+      return;
+    }
+    
+    // Set up previous handler
+    sectionGate._previousHandler = () => {
+      if (currentSpaceIndex > 0) {
+        // Go back to previous space's section gate
+        state.currentSpaceIndex = currentSpaceIndex - 1;
+        if (saveStateFn) saveStateFn(state);
+        renderSectionGates(config, mount, state, handlers, saveStateFn);
+      } else {
+        // Go back to global questions
+        if (handlers.onGoBack) {
+          handlers.onGoBack();
+        }
+      }
+    };
+    
+    // Render the section gate question
+    renderJSONQuestion(
+      sectionGate,
+      config,
+      mount,
+      state,
+      handlers,
+      saveStateFn,
+      (questionId, answer) => {
+        // Store section gate selections
+        if (!state.selectedCategories) state.selectedCategories = {};
+        // Store as array of category IDs
+        state.selectedCategories[questionId] = Array.isArray(answer) ? answer : [answer];
+        if (saveStateFn) saveStateFn(state);
+      },
+      () => {
+        // Continue to next space's section gate
+        state.currentSpaceIndex = currentSpaceIndex + 1;
+        if (saveStateFn) saveStateFn(state);
+        renderSectionGates(config, mount, state, handlers, saveStateFn);
+      }
+    );
+  }
+
+  /**
+   * Renders space-specific questions for a given space
+   * @param {string} spaceId - Space ID
+   * @param {number} questionIndex - Current question index within the space
+   * @param {Object} config - Quiz config
+   * @param {HTMLElement} mount - Mount element
+   * @param {Object} state - Current state
+   * @param {Object} handlers - Event handlers
+   * @param {Function} saveStateFn - Function to save state
+   */
+  function renderSpaceQuestions(spaceId, questionIndex, config, mount, state, handlers, saveStateFn) {
+    state.currentFlow = 'space-questions';
+    state.currentSpace = spaceId;
+    
+    // Track question index per space for resume functionality
+    if (!state.currentSpaceQuestionIndex) state.currentSpaceQuestionIndex = {};
+    state.currentSpaceQuestionIndex[spaceId] = questionIndex;
+    
+    if (saveStateFn) saveStateFn(state);
+    
+    // Load all questions for this space
+    const allQuestions = loadSpaceQuestions(spaceId);
+    if (!allQuestions || allQuestions.length === 0) {
+      // No questions for this space, move to next space
+      handlers.onContinueFromSpaceQuestions(spaceId);
+      return;
+    }
+    
+    // Build context for filtering
+    const context = {
+      projectType: state.projectType || state.jsonQuestionAnswers?.project_type,
+      buildType: state.buildType || state.jsonQuestionAnswers?.build_type,
+      routeMode: state.routeMode || state.jsonQuestionAnswers?.route_mode,
+      answers: state.jsonQuestionAnswers || {},
+      jsonQuestionAnswers: state.jsonQuestionAnswers || {},
+      projectContext: state.projectContext || {},
+      selectedCategories: state.selectedCategories || {},
+    };
+    
+    // Filter questions based on conditions
+    const visibleQuestions = filterQuestionsByConditions(allQuestions, context);
+    
+    // Further filter: exclude section gate questions (already handled)
+    const questionsToShow = visibleQuestions.filter(q => 
+      !q.id || !q.id.startsWith('section_gate_')
+    );
+    
+    // Check if we've completed all questions for this space
+    if (questionIndex >= questionsToShow.length) {
+      // All questions answered for this space
+      handlers.onContinueFromSpaceQuestions(spaceId);
+      return;
+    }
+    
+    const question = questionsToShow[questionIndex];
+    
+    // Set up previous handler
+    question._previousHandler = () => {
+      if (questionIndex > 0) {
+        // Go back to previous question in this space
+        renderSpaceQuestions(spaceId, questionIndex - 1, config, mount, state, handlers, saveStateFn);
+      } else {
+        // Go back to section gates
+        state.currentFlow = 'section-gates';
+        state.currentSpaceIndex = state.spaceOrder ? state.spaceOrder.indexOf(spaceId) : 0;
+        if (saveStateFn) saveStateFn(state);
+        renderSectionGates(config, mount, state, handlers, saveStateFn);
+      }
+    };
+    
+    // Render the question
+    renderJSONQuestion(
+      question,
+      config,
+      mount,
+      state,
+      handlers,
+      saveStateFn,
+      (questionId, answer) => {
+        // Store answer
+        state.jsonQuestionAnswers[questionId] = answer;
+        if (saveStateFn) saveStateFn(state);
+      },
+      () => {
+        // Continue to next question in this space
+        renderSpaceQuestions(spaceId, questionIndex + 1, config, mount, state, handlers, saveStateFn);
+      }
+    );
+  }
+
   function renderProjectType(config, mount, state, handlers, saveStateFn) {
+    // Set the current flow to project-type for proper navigation
+    state.currentFlow = 'project-type';
+    if (saveStateFn) saveStateFn(state);
+    
     // Import design specifics questions from JS module
     // The JS file should be loaded via script tag in HTML or imported via module system
     // For now, we'll use dynamic import if available, otherwise fall back to fetch
@@ -5164,7 +5809,11 @@
       // If loaded via script tag, use directly
       const questions = window.DESIGN_SPECIFICS_QUESTIONS || window.GLOBAL_QUESTIONS;
       if (questions && questions.length > 0) {
-        renderGlobalQuestions(questions, 0, config, mount, state, handlers, saveStateFn);
+        // Resume from saved question index if available, otherwise start at 0
+        const startIndex = (state.jsonQuestionIndex !== undefined && state.jsonQuestionIndex !== null) 
+          ? state.jsonQuestionIndex 
+          : 0;
+        renderGlobalQuestions(questions, startIndex, config, mount, state, handlers, saveStateFn);
         return;
       }
     }
@@ -5730,6 +6379,10 @@
       lastSaved: null, // Timestamp for save/resume
       spaceOrder: [], // Order in which spaces will be processed
       completedSpaces: [], // Array of space IDs that have been completed
+      currentSpaceIndex: null, // Current index in spaceOrder for section gates
+      currentSpaceQuestionIndex: {}, // Current question index per space: { spaceId: index }
+      jsonQuestionUrls: {}, // URLs for questions that require them: { questionId: { optionId: 'url', ... } }
+      jsonQuestionIndex: null, // Current question index for resume functionality
     };
 
     // Ensure new fields exist in savedState (backward compatibility)
@@ -5756,6 +6409,7 @@
       if (!savedState.categoryQualifiers) savedState.categoryQualifiers = {};
       if (!savedState.spaceOrder) savedState.spaceOrder = [];
       if (!savedState.completedSpaces) savedState.completedSpaces = [];
+      if (!savedState.jsonQuestionUrls) savedState.jsonQuestionUrls = {};
     }
     
     // If state was loaded but URL has new invitation params, update them
@@ -6021,6 +6675,35 @@
         renderSuccess(config, mount, state, handlers);
       },
       onGoBack() {
+        // Handle project-type flow (global questions / design specifics)
+        if (state.currentFlow === 'project-type') {
+          state.currentFlow = 'expert-intro';
+          saveState(state);
+          renderExpertIntro(config, mount, state, handlers);
+          return;
+        }
+        
+        // Handle section-gates flow
+        if (state.currentFlow === 'section-gates') {
+          // Go back to global questions
+          state.currentFlow = 'project-type';
+          state.spaceOrder = null;
+          state.currentSpaceIndex = null;
+          saveState(state);
+          renderProjectType(config, mount, state, handlers, saveState);
+          return;
+        }
+        
+        // Handle space-questions flow
+        if (state.currentFlow === 'space-questions') {
+          // Go back to section gates
+          state.currentFlow = 'section-gates';
+          state.currentSpace = null;
+          saveState(state);
+          renderSectionGates(config, mount, state, handlers, saveState);
+          return;
+        }
+        
         if (state.currentStep > 0) {
           state.currentStep -= 1;
           saveState(state);
@@ -6134,7 +6817,39 @@
           return;
         }
 
-        resetMaterialFlowToExpertIntro();
+        // For all flows after the style quiz (expert-intro, project-type, materials-selection, etc.)
+        // Reset to expert-intro and clear all state that happened after the style quiz
+        // Keep: participantName, selectedSpace, spacesRequested, wordChoice, choices, finalStyle, topStyles
+        // Clear: everything from expert-intro onwards
+        
+        // Clear global questions and design specifics
+        state.jsonQuestionAnswers = {};
+        state.jsonQuestionUrls = {};
+        state.projectType = null;
+        state.buildType = null;
+        state.routeMode = null;
+        state.selectedCategories = {};
+        state.projectContext = {};
+        
+        // Clear materials selection state
+        state.currentExpert = 'aria';
+        state.currentExpertQuestion = 0;
+        state.materialsSelections = {};
+        state.categorySelectionBySpace = {};
+        state.categoryQualifiers = {};
+        state.categoryFlags = { ...CATEGORY_FLAGS_TEMPLATE };
+        state.deferredDecisions = [];
+        state.currentSpace = null;
+        state.currentCategory = null;
+        state.currentCategoryIndex = 0;
+        state.spaceOrder = [];
+        state.completedSpaces = [];
+        state.lastSaved = null;
+        
+        // Go back to expert-intro (Meet the Team)
+        state.currentFlow = 'expert-intro';
+        saveState(state);
+        renderExpertIntro(config, mount, state, handlers);
       },
       onSelectMaterials() {
         // Start expert-guided flow with intro
@@ -6147,9 +6862,9 @@
         renderExpertIntro(config, mount, state, handlers);
       },
       onContinueFromExpertIntro() {
-        // For Whole Home flow, route to Global Questions first
-        // Then Global Questions will route back here, and we'll proceed based on route_mode
-        if (state.selectedSpace === 'general' && !state.jsonQuestionAnswers?.route_mode) {
+        // For both Whole Home and single spaces, route to Global Questions first if not answered yet
+        // Then Global Questions will route to Section Gates → Space Questions → Materials
+        if (!state.jsonQuestionAnswers?.route_mode) {
           // Haven't answered global questions yet, route to them
           state.currentFlow = 'project-type';
           saveState(state);
@@ -6157,7 +6872,8 @@
           return;
         }
         
-        // Route based on route_mode selected in global questions
+        // If global questions are already answered, this shouldn't happen in normal flow
+        // But if it does, route based on route_mode
         const routeMode = state.routeMode || state.jsonQuestionAnswers?.route_mode || state.projectContext?.routeMode;
         
         // Default to express if routeMode is not set (for backward compatibility)
@@ -6168,10 +6884,13 @@
           saveState(state);
           renderMaterialsSelection(config, mount, state, handlers);
         } else {
-          // Standard or Deep: Show coming soon page (pathway not yet developed)
-          state.currentFlow = 'pathway-coming-soon';
+          // Standard or Deep: Should have already gone through section gates
+          // This is a fallback - route to section gates
+          state.currentFlow = 'section-gates';
+          state.spaceOrder = null;
+          state.currentSpaceIndex = null;
           saveState(state);
-          renderPathwayComingSoon(config, mount, state, handlers, saveState);
+          renderSectionGates(config, mount, state, handlers, saveState);
         }
       },
       onSelectProjectType(typeId) {
@@ -6212,32 +6931,79 @@
           state.routeMode = state.jsonQuestionAnswers.route_mode;
         }
         
-        // Check route mode and route directly - don't go back to expert intro if Express
+        // For both Whole Home and single spaces, show section gates first
+        // Then route based on routeMode (Express → Materials, Standard/Deep → Space Questions → Materials)
+        
+        // Initialize spacesRequested for single spaces if not already set
+        if (state.selectedSpace !== 'general') {
+          // Single space selected - initialize spacesRequested with just this space
+          if (!state.spacesRequested || state.spacesRequested.length === 0) {
+            const spaceInfo = config.spaceTypes?.find(s => s.id === state.selectedSpace);
+            state.spacesRequested = [{
+              id: normalizeSpaceId(state.selectedSpace),
+              name: spaceInfo?.name || state.selectedSpace
+            }];
+          }
+        }
+        
+        // Reset space order and index for section gates
+        state.spaceOrder = null;
+        state.currentSpaceIndex = null;
+        state.currentSpaceQuestionIndex = {};
+        saveState(state);
+        renderSectionGates(config, mount, state, handlers, saveState);
+      },
+      onContinueFromSectionGates() {
+        // Section gates completed, now route based on routeMode
         const routeMode = state.routeMode || state.jsonQuestionAnswers?.route_mode || state.projectContext?.routeMode;
         
         if (routeMode === 'express') {
-          // Express: Check if materials selection is available for this space
-          const materialsAvailable = config.materialsBySpace && 
-                                     config.materialsBySpace[state.selectedSpace] && 
-                                     config.materialsBySpace[state.selectedSpace].length > 0;
-          
-          if (materialsAvailable) {
-            // Materials available: Skip directly to materials selection
+          // Express: Skip questions, go directly to materials selection
+          state.currentFlow = 'materials-selection';
+          state.currentCategoryIndex = 0;
+          saveState(state);
+          renderMaterialsSelection(config, mount, state, handlers);
+        } else {
+          // Standard or Deep: Show space-specific questions
+          // Start with first space
+          state.currentSpaceIndex = 0;
+          state.currentSpaceQuestionIndex = {};
+          if (state.spaceOrder && state.spaceOrder.length > 0) {
+            const firstSpaceId = state.spaceOrder[0];
+            renderSpaceQuestions(firstSpaceId, 0, config, mount, state, handlers, saveState);
+          } else {
+            // No spaces, go to materials
             state.currentFlow = 'materials-selection';
             state.currentCategoryIndex = 0;
             saveState(state);
             renderMaterialsSelection(config, mount, state, handlers);
-          } else {
-            // Materials not available: Show coming soon page
-            state.currentFlow = 'pathway-coming-soon';
-            saveState(state);
-            renderPathwayComingSoon(config, mount, state, handlers, saveState);
           }
+        }
+      },
+      onContinueFromSpaceQuestions(completedSpaceId) {
+        // Questions completed for a space, move to next space or materials
+        const currentSpaceIndex = state.currentSpaceIndex || 0;
+        const spaceOrder = state.spaceOrder || [];
+        
+        // Mark this space as completed
+        if (!state.completedSpaces) state.completedSpaces = [];
+        if (!state.completedSpaces.includes(completedSpaceId)) {
+          state.completedSpaces.push(completedSpaceId);
+        }
+        
+        // Check if there are more spaces
+        const nextSpaceIndex = currentSpaceIndex + 1;
+        if (nextSpaceIndex < spaceOrder.length) {
+          // Move to next space
+          state.currentSpaceIndex = nextSpaceIndex;
+          const nextSpaceId = spaceOrder[nextSpaceIndex];
+          renderSpaceQuestions(nextSpaceId, 0, config, mount, state, handlers, saveState);
         } else {
-          // Standard or Deep: Go to expert intro first
-          state.currentFlow = 'expert-intro';
+          // All spaces completed, go to materials selection
+          state.currentFlow = 'materials-selection';
+          state.currentCategoryIndex = 0;
           saveState(state);
-          renderExpertIntro(config, mount, state, handlers);
+          renderMaterialsSelection(config, mount, state, handlers);
         }
       },
       onGoBackFromExpertQuestion() {
