@@ -250,7 +250,51 @@ const DESIGN_SPECIFICS_QUESTIONS = [
       { id: "warm_metal", name: "Warmer Metals", desc: "Avoid brass/bronze tones." },
       { id: "strong_contr", name: "High Contrast", desc: "No black-white extremes overall." },
       { id: "pattern_tiles", name: "Patterned Tiles", desc: "Avoid bold graphics underfoot." },
-      { id: "carpet_any", name: "Carpet Anywhere", desc: "Prefer hard surfaces throughout." }
+      { id: "carpet_any", name: "Carpet Anywhere", desc: "Prefer hard surfaces throughout." },
+      { id: "specific_color", name: "Specific Color", desc: "Exclude specific colors from selections." }
+    ]
+  },
+  {
+    id: "ds_excluded_colors",
+    space: "Design Specifics",
+    persona: "clara",
+    type: "multi",
+    prompt: "Which colors should be excluded from your selections?",
+    description: "Select all colors you'd like to avoid in materials and finishes. **(Select All That Apply)**",
+    showIf: { answerOf: "ds_dislikes", in: ["specific_color"] },
+    options: [
+      { id: "beige", name: "Beige" },
+      { id: "black", name: "Black" },
+      { id: "blue", name: "Blue" },
+      { id: "brass", name: "Brass" },
+      { id: "bronze", name: "Bronze" },
+      { id: "brown", name: "Brown" },
+      { id: "burgundy", name: "Burgundy" },
+      { id: "charcoal", name: "Charcoal" },
+      { id: "chrome", name: "Chrome" },
+      { id: "copper", name: "Copper" },
+      { id: "coral", name: "Coral" },
+      { id: "cream", name: "Cream" },
+      { id: "gold", name: "Gold" },
+      { id: "gray", name: "Gray" },
+      { id: "green", name: "Green" },
+      { id: "ivory", name: "Ivory" },
+      { id: "lavender", name: "Lavender" },
+      { id: "maroon", name: "Maroon" },
+      { id: "navy", name: "Navy" },
+      { id: "nickel", name: "Nickel" },
+      { id: "orange", name: "Orange" },
+      { id: "pink", name: "Pink" },
+      { id: "purple", name: "Purple" },
+      { id: "red", name: "Red" },
+      { id: "rose", name: "Rose" },
+      { id: "sage", name: "Sage" },
+      { id: "silver", name: "Silver" },
+      { id: "tan", name: "Tan" },
+      { id: "taupe", name: "Taupe" },
+      { id: "teal", name: "Teal" },
+      { id: "white", name: "White" },
+      { id: "yellow", name: "Yellow" }
     ]
   },
 
@@ -270,8 +314,7 @@ const DESIGN_SPECIFICS_QUESTIONS = [
       { id: "low_maint", name: "Low Maintenance", desc: "Favor durable, easy-care finishes." },
       { id: "pets_kids", name: "Pets/Kids Friendly", desc: "Scratch-, stain-, and water-resistant choices." },
       { id: "aging_place", name: "Aging-in-Place", desc: "Accessibility and safer surfaces." },
-      { id: "phased_work", name: "Phased Installation", desc: "Plan selections in logical stages." },
-      { id: "trade_ready", name: "Trade-Ready Details", desc: "Specs/notes optimized for GC subs." }
+      { id: "phased_work", name: "Phased Installation", desc: "Plan selections in logical stages." }
     ]
   }
 ];

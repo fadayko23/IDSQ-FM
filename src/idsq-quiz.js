@@ -33,7 +33,7 @@
       errorTitle: 'Something went wrong',
       errorDescription: 'We were unable to save your result. Please try again.',
       wordAssociationTitle: 'Which word resonates with you?',
-      wordAssociationDescription: 'Take a moment and let your intuition guide you—choose the word that speaks to your heart.',
+      wordAssociationDescription: 'Take a moment and let your intuition guide you—choose the word that resonates with you.',
       scheduleCTATitle: 'Ready to bring your vision to life?',
       scheduleCTADescription: 'Schedule a complimentary discovery call with our team.',
       scheduleButton: 'Schedule Your Complimentary Call',
@@ -98,7 +98,7 @@
         words: ['Inspired','Grounded','Clear','Driven','Calm','Focused','Energized','Balanced','Creative','Composed','Minimal','Productive','Elevated','Organized','Tranquil','Sun-lit','Cozy','Visionary','Warm','Refreshing','Centered','Expressive','Natural','Mindful']
       },
       general: {
-        prompt: 'Which word best captures the feeling you want your home to evoke?',
+        prompt: 'If your home could tell a story, which word describes its character?',
         words: ['Harmonious','Collected','Earthbound','Breezy','Elevated','Organic','Nostalgic','Intentional','Minimal','Glamorous','Relaxed','Mediterranean','Centered','Balanced','Playful','Warm','Sophisticated','Luminous','Textured','Bold','Serene','Refined','Vibrant','Natural']
       }
     },
@@ -144,7 +144,7 @@
     styleLibrary: {
       coastal: {
         styleName: 'Coastal',
-        description: 'In the simplest definition, coastal is beachy. Through use of natural light, soft tones, and a clean aesthetic, it\'s meant to evoke the breeziness of the beach. Basically, it feels like summer year-round inside your house.',
+        description: 'In the simplest definition, coastal is beachy. Through use of natural light, soft tones, and a clean aesthetic, it\'s meant to capture the breeziness of the beach. Basically, it feels like summer year-round inside your house.',
         dna: [
           'Palette: white, sand, driftwood, sea‑glass, soft navy',
           'Materials: slipcovered linen, woven fibers, bleached oak, zellige tile',
@@ -1058,7 +1058,7 @@
           imageUrl: img || 'https://images.unsplash.com/photo-1505692794403-5f23d2fcf25d?auto=format&fit=crop&w=900&q=80',
         });
       }
-      rounds.push({ id: `round-${r+1}`, prompt: r===0 ? 'Which look pulls you in?' : r===1 ? 'Which space feels right?' : r===2 ? 'Which aesthetic speaks to you?' : 'Which style feels most like home?', options });
+      rounds.push({ id: `round-${r+1}`, prompt: r===0 ? 'Which look captures your vision of home?' : r===1 ? 'Which space feels right?' : r===2 ? 'Which design style resonates with you?' : 'Which style feels most like home?', options });
     }
     return rounds;
   }
@@ -2320,7 +2320,7 @@
     title.textContent = waConfig.prompt || config.copy.wordAssociationTitle;
     const description = createElement('p', 'idsq-description');
     if (state.participantName) {
-      description.textContent = `Trust your intuition, ${state.participantName}\u2014choose the word that speaks to you.`;
+      description.textContent = `Trust your intuition, ${state.participantName}\u2014choose the word that resonates with you.`;
     } else {
       description.textContent = config.copy.wordAssociationDescription;
     }
@@ -2416,9 +2416,9 @@
     // Add helpful instruction text - rotate by round for variety
     const instruction = createElement('p', 'idsq-instruction');
     const instructionVariants = [
-      'Trust your intuition—which image speaks to you?',
+      'Follow your instincts—choose the space that feels like home to you.',
       'Follow your gut—what catches your eye?',
-      'Go with your first instinct—which calls to you?',
+      'Go with your first instinct—which one feels right?',
       'What draws you in? Choose what feels right.'
     ];
     // Cycle through variants based on current step
@@ -2601,7 +2601,7 @@
          'Quality over quantity always! Better to have fewer, well-chosen pieces than a room full of items that don\'t quite work together. Your selections show you understand that.'],
         // Round 4 (before final selection)
         ['One more round! By now, your style preferences are really coming through. Trust that feeling—the design that resonates most with you is the one that will truly feel like home.',
-         'Final selection! You\'ve shown such consistent taste. This last choice will help us pinpoint exactly which style speaks to your heart and makes your living room perfect for YOUR lifestyle.',
+         'Final selection! You\'ve shown such consistent taste. This last choice will help us pinpoint exactly which style resonates with you and makes your living room perfect for YOUR lifestyle.',
          'Last round! Your living room should reflect who you are. We\'re so close to discovering the design language that will make this space authentically yours.',
          'This is it! One more choice and we\'ll have your complete style profile. Trust those instincts—you\'ve been spot-on throughout this entire process.']
       ],
@@ -2622,7 +2622,7 @@
          'A bedroom should feel cocoon-like. Think about creating layers of texture—soft linens, plush pillows, velvet throws—that invite you to sink in and decompress.',
          'Quality bedding elevates everything! Good thread count sheets and a beautiful duvet cover are investments in your daily comfort and the room\'s overall aesthetic.'],
         // Round 4
-        ['Final selection! You\'ve shown such consistent taste. This last choice will help us pinpoint exactly which style speaks to your heart and will make your bedroom feel like the perfect retreat.',
+        ['Final selection! You\'ve shown such consistent taste. This last choice will help us pinpoint exactly which style resonates with you and will make your bedroom feel like the perfect retreat.',
          'Last round! Your bedroom sanctuary is taking shape. One more choice and we\'ll have the complete picture of your ideal sleep space.',
          'This is it! You\'ve been so thoughtful about what creates your ideal bedroom. Trust those final instincts—we\'re so close to your perfect style match.',
          'One more to go! Your bedroom should be YOUR haven. This final selection will reveal the style that transforms your sleep space into the peaceful retreat you deserve.']
@@ -3391,11 +3391,31 @@
         line-height: 30px;
         font-weight: 500;
         margin-bottom: 0.5rem;
+        margin-left: auto;
+        margin-right: auto;
+        max-width: 700px;
         color: rgba(44, 44, 44, 0.7);
         text-align: center;
       }
       .idsq-description:last-of-type {
         margin-bottom: 2.5rem;
+      }
+      .idsq-selection-instruction {
+        font-size: 16px;
+        line-height: 30px;
+        font-weight: 500;
+        margin-top: 1rem;
+        margin-bottom: 2rem;
+        margin-left: auto;
+        margin-right: auto;
+        max-width: 700px;
+        color: rgba(44, 44, 44, 0.7);
+        text-align: center;
+        padding-top: 0.75rem;
+      }
+      .idsq-selection-instruction strong {
+        font-weight: 700;
+        color: rgba(44, 44, 44, 0.85);
       }
       .idsq-instruction {
         font-size: 0.95rem;
@@ -3866,6 +3886,75 @@
         color: var(--idsq-primary);
         border-color: var(--idsq-primary);
         outline: none;
+      }
+      .idsq-color-chips-container {
+        width: 100%;
+        margin-top: 2rem;
+        display: flex;
+        justify-content: center;
+      }
+      .idsq-color-chips {
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        gap: 0.75rem;
+        justify-items: center;
+        max-width: 1000px;
+        width: 100%;
+      }
+      .idsq-color-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.75rem 1.25rem;
+        border-radius: 999px;
+        background: rgba(54,54,54,0.03);
+        border: 2px solid rgba(54,54,54,0.1);
+        color: rgba(44,44,44,0.85);
+        font-weight: 600;
+        font-size: 0.95rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 4px 12px rgba(54, 54, 54, 0.15);
+        width: 100%;
+        max-width: 120px;
+      }
+      .idsq-color-chip:hover {
+        background: rgba(54,54,54,0.06);
+        border-color: rgba(54,54,54,0.2);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(54, 54, 54, 0.2);
+      }
+      .idsq-color-chip.idsq-selected {
+        background: var(--idsq-primary);
+        border-color: var(--idsq-primary);
+        color: #ffffff;
+        box-shadow: 0 6px 20px rgba(54, 54, 54, 0.3);
+      }
+      .idsq-color-chip.idsq-selected:hover {
+        background: var(--idsq-primary);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(54, 54, 54, 0.4);
+      }
+      @media (max-width: 1200px) {
+        .idsq-color-chips {
+          grid-template-columns: repeat(6, 1fr);
+        }
+      }
+      @media (max-width: 900px) {
+        .idsq-color-chips {
+          grid-template-columns: repeat(4, 1fr);
+        }
+      }
+      @media (max-width: 640px) {
+        .idsq-color-chips {
+          grid-template-columns: repeat(3, 1fr);
+          gap: 0.5rem;
+        }
+        .idsq-color-chip {
+          padding: 0.65rem 1rem;
+          font-size: 0.9rem;
+          max-width: none;
+        }
       }
       .idsq-button-container-right {
         justify-content: flex-end;
@@ -4915,35 +5004,143 @@
     title.textContent = promptText;
     section.appendChild(title);
     
-    // Subtitle - show "(Select all that apply)" between title and description if it was in the prompt
-    if (selectAllText) {
-      const subtitle = createElement('p', 'idsq-subtitle');
-      // Bold the text and ensure no period
-      const cleanText = selectAllText.replace(/\.$/, '');
-      subtitle.innerHTML = `<strong>${cleanText}</strong>`;
-      section.appendChild(subtitle);
-    }
-    
     // Description - render with HTML support for bold markdown
+    // Also extract "(Select One Option)" and "(Select All That Apply)" if present in description
+    let selectOneText = null;
+    let selectAllFromDesc = null;
+    let descHtml = '';
     if (question.description) {
       const description = createElement('p', 'idsq-description');
-      // Convert markdown bold (**text**) to HTML <strong> tags
-      let descHtml = question.description.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      descHtml = question.description;
+      
+      // Extract "(Select All That Apply)" from description if present (in markdown bold or plain text)
+      const selectAllDescRegex = /(\([Ss]elect\s+all\s+that\s+apply\.?\))/gi;
+      const selectAllDescMatch = descHtml.match(selectAllDescRegex);
+      if (selectAllDescMatch) {
+        // Extract the text (remove period if present)
+        selectAllFromDesc = selectAllDescMatch[0].replace(/\.$/, '');
+        // Remove from description (handle both markdown bold and plain text versions)
+        descHtml = descHtml.replace(/\*\*\([Ss]elect\s+all\s+that\s+apply\.?\)\*\*/gi, '').replace(selectAllDescRegex, '').trim();
+        // Clean up any double spaces, trailing periods/spaces, or leading spaces
+        descHtml = descHtml.replace(/\s+/g, ' ').replace(/\s+\.$/, '.').trim();
+      }
+      
+      // Extract "(Select One Option)" from description if present (in markdown bold format)
+      const selectOneRegex = /\*\*\([Ss]elect\s+one\s+option\.?\)\*\*/gi;
+      const selectOneMatch = descHtml.match(selectOneRegex);
+      if (selectOneMatch) {
+        // Extract the text (remove markdown bold and period if present)
+        selectOneText = selectOneMatch[0].replace(/\*\*/g, '').replace(/\.$/, '');
+        // Remove from description
+        descHtml = descHtml.replace(selectOneRegex, '').trim();
+        // Clean up any double spaces, trailing periods/spaces, or leading spaces
+        descHtml = descHtml.replace(/\s+/g, ' ').replace(/\s+\.$/, '.').trim();
+      }
+      
+      // Convert remaining markdown bold (**text**) to HTML <strong> tags
+      descHtml = descHtml.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
       description.innerHTML = descHtml;
       section.appendChild(description);
     }
     
-    // Create option grid
-    const grid = createElement('div', 'idsq-option-grid');
-    if (question.options && question.options.length <= 2) {
-      grid.classList.add('idsq-grid-two-items');
-    } else if (question.options && question.options.length === 4) {
-      grid.classList.add('idsq-grid-four-items');
-    } else if (question.options && question.options.length === 6) {
-      grid.classList.add('idsq-grid-six-items');
+    // Show selection instruction below description if present (prioritize from description, then from prompt)
+    const selectionText = selectAllFromDesc || selectOneText || selectAllText;
+    if (selectionText) {
+      const selectionInstruction = createElement('p', 'idsq-selection-instruction');
+      // Bold the text and ensure no period
+      const cleanText = selectionText.replace(/\.$/, '');
+      selectionInstruction.innerHTML = `<strong>${cleanText}</strong>`;
+      section.appendChild(selectionInstruction);
     }
     
-    question.options.forEach((option) => {
+    // Special rendering for color selection question (ds_excluded_colors) - use chips instead of cards
+    if (question.id === 'ds_excluded_colors') {
+      const colorContainer = createElement('div', 'idsq-color-chips-container');
+      const colorChips = createElement('div', 'idsq-color-chips');
+      
+      question.options.forEach((option) => {
+        const chip = createElement('button', 'idsq-color-chip', {
+          type: 'button',
+        });
+        
+        // Check if selected
+        const isSelected = Array.isArray(currentAnswer) && currentAnswer.includes(option.id);
+        if (isSelected) {
+          chip.classList.add('idsq-selected');
+        }
+        
+        chip.textContent = option.name;
+        
+        // Add click handler
+        chip.addEventListener('click', () => {
+          const current = state.jsonQuestionAnswers[question.id] || [];
+          const newAnswer = current.includes(option.id)
+            ? current.filter(id => id !== option.id)
+            : [...current, option.id];
+          
+          state.jsonQuestionAnswers[question.id] = newAnswer;
+          if (saveStateFn) saveStateFn(state);
+          if (onAnswer) onAnswer(question.id, newAnswer);
+          // Re-render to update UI
+          renderJSONQuestion(question, config, mount, state, handlers, saveStateFn, onAnswer, onContinue);
+        });
+        
+        colorChips.appendChild(chip);
+      });
+      
+      colorContainer.appendChild(colorChips);
+      section.appendChild(colorContainer);
+      
+      // Add navigation for color chips (same as standard rendering)
+      const navigation = createElement('div', 'idsq-step-navigation');
+      
+      // Previous button
+      if (question._previousHandler) {
+        const previousButton = createElement('button', 'idsq-button idsq-button-secondary');
+        previousButton.textContent = 'Previous';
+        previousButton.addEventListener('click', () => {
+          question._previousHandler();
+        });
+        navigation.appendChild(previousButton);
+      }
+      
+      // Continue/Skip button logic
+      const hasAnswer = Array.isArray(currentAnswer) && currentAnswer.length > 0;
+      
+      if (!hasAnswer) {
+        const skipButton = createElement('button', 'idsq-button idsq-button-secondary');
+        skipButton.textContent = 'Skip';
+        skipButton.addEventListener('click', () => {
+          state.jsonQuestionAnswers[question.id] = [];
+          if (saveStateFn) saveStateFn(state);
+          if (onAnswer) onAnswer(question.id, []);
+          if (onContinue) onContinue();
+        });
+        navigation.appendChild(skipButton);
+      }
+      
+      if (hasAnswer) {
+        const continueButton = createElement('button', 'idsq-button idsq-button-primary');
+        continueButton.textContent = 'Continue';
+        continueButton.addEventListener('click', () => {
+          if (onContinue) onContinue();
+        });
+        navigation.appendChild(continueButton);
+      }
+      
+      section.appendChild(navigation);
+    } else {
+      // Standard card-based rendering
+      const grid = createElement('div', 'idsq-option-grid');
+      if (question.options && question.options.length <= 2) {
+        grid.classList.add('idsq-grid-two-items');
+      } else if (question.options && question.options.length === 4) {
+        grid.classList.add('idsq-grid-four-items');
+      } else if (question.options && question.options.length === 6) {
+        grid.classList.add('idsq-grid-six-items');
+      }
+      
+      question.options.forEach((option) => {
       const card = createElement('button', 'idsq-option-card idsq-space-card', {
         type: 'button',
       });
@@ -5134,6 +5331,7 @@
     }
     
     section.appendChild(navigation);
+    }
     
     showSection(mount, section, handlers);
   }
@@ -6079,9 +6277,9 @@
     // Add helpful instruction text
     const instruction = createElement('p', 'idsq-instruction');
     const instructionVariants = [
-      'Trust your intuition—which image speaks to you?',
+      'Follow your instincts—choose the space that feels like home to you.',
       'Follow your gut—what catches your eye?',
-      'Go with your first instinct—which calls to you?',
+      'Go with your first instinct—which one feels right?',
       'What draws you in? Choose what feels right.'
     ];
     const instructionIndex = state.currentCategoryIndex % instructionVariants.length;
