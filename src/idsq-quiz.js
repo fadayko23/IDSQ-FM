@@ -1858,6 +1858,14 @@
       card.classList.add('idsq-space-card');
       if (state && state.selectedSpace === space.id) {
         card.classList.add('idsq-selected');
+        // Add checkmark overlay for selected cards
+        const checkmarkOverlay = createElement('div', 'idsq-card-checkmark');
+        checkmarkOverlay.innerHTML = `
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8 12L11 15L16 9" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        `;
+        card.appendChild(checkmarkOverlay);
       }
 
       const icon = createElement('div', 'idsq-space-icon');
@@ -2004,6 +2012,15 @@
         card.classList.add('idsq-other-toggle-card');
         if (showOtherSpaces) {
           card.classList.add('idsq-selected');
+          // Add checkmark overlay for selected cards
+          const checkmarkOverlay = createElement('div', 'idsq-card-checkmark');
+          checkmarkOverlay.innerHTML = `
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="10" fill="#006bea"/>
+              <path d="M8 12L11 15L16 9" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          `;
+          card.appendChild(checkmarkOverlay);
         }
         card.addEventListener('click', () => {
           state.showOtherSpaces = !showOtherSpaces;
@@ -2017,6 +2034,15 @@
       } else {
         if (isSpaceSelected(space.id)) {
           card.classList.add('idsq-selected');
+          // Add checkmark overlay for selected cards
+          const checkmarkOverlay = createElement('div', 'idsq-card-checkmark');
+          checkmarkOverlay.innerHTML = `
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="10" fill="#006bea"/>
+              <path d="M8 12L11 15L16 9" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          `;
+          card.appendChild(checkmarkOverlay);
         }
         card.addEventListener('click', () => {
           const removed = removeSpaceFromSelection(state, space.id);
@@ -2436,6 +2462,14 @@
       const isSelected = state.choices[state.currentStep]?.id === option.id;
       if (isSelected) {
         card.classList.add('idsq-selected');
+        // Add checkmark overlay for selected cards
+        const checkmarkOverlay = createElement('div', 'idsq-card-checkmark');
+        checkmarkOverlay.innerHTML = `
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8 12L11 15L16 9" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        `;
+        card.appendChild(checkmarkOverlay);
       }
       
       card.addEventListener('click', () => handlers.onSelectOption(option));
@@ -3524,8 +3558,46 @@
         margin-left: auto;
         margin-right: auto;
       }
+      .idsq-option-grid.idsq-section-gate-grid {
+        grid-template-columns: repeat(5, 1fr);
+        gap: 1rem;
+        max-width: 1200px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .idsq-section-gate-grid .idsq-option-card {
+        padding: 1rem;
+        min-height: auto;
+      }
+      .idsq-section-gate-grid .idsq-option-title {
+        font-size: 0.95rem;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+      }
+      .idsq-section-gate-grid .idsq-option-description {
+        font-size: 0.8rem;
+        line-height: 1.4;
+        margin-top: 0.25rem;
+      }
+      .idsq-section-gate-grid .idsq-space-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+      }
+      @media (max-width: 1200px) {
+        .idsq-option-grid.idsq-section-gate-grid {
+          grid-template-columns: repeat(4, 1fr);
+        }
+      }
       @media (max-width: 960px) {
         .idsq-option-grid.idsq-grid-six-items {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .idsq-option-grid.idsq-section-gate-grid {
+          grid-template-columns: repeat(3, 1fr);
+        }
+      }
+      @media (max-width: 640px) {
+        .idsq-option-grid.idsq-section-gate-grid {
           grid-template-columns: repeat(2, 1fr);
         }
       }
@@ -3620,6 +3692,37 @@
         border-color: var(--idsq-primary);
         border-width: 3px;
         box-shadow: 0 8px 30px rgba(44, 44, 44, 0.15);
+      }
+      .idsq-card-checkmark {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        z-index: 10;
+        pointer-events: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        background: #006bea;
+        border-radius: 50%;
+        box-shadow: 0 4px 12px rgba(0, 107, 234, 0.4);
+        animation: checkmarkAppear 0.3s ease-out;
+      }
+      .idsq-card-checkmark svg {
+        width: 20px;
+        height: 20px;
+        display: block;
+      }
+      @keyframes checkmarkAppear {
+        from {
+          opacity: 0;
+          transform: scale(0.5);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
       }
       .idsq-whole-home {
         align-items: stretch;
@@ -3891,7 +3994,23 @@
         width: 100%;
         margin-top: 2rem;
         display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+      }
+      .idsq-select-all-none {
+        display: flex;
+        gap: 0.75rem;
         justify-content: center;
+        width: 100%;
+        margin-top: 1.5rem;
+        margin-bottom: 1.5rem;
+        align-items: center;
+      }
+      .idsq-select-all-btn,
+      .idsq-select-none-btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
       }
       .idsq-color-chips {
         display: grid;
@@ -3900,6 +4019,22 @@
         justify-items: center;
         max-width: 1000px;
         width: 100%;
+      }
+      /* Section gate chips use a more compact grid */
+      .idsq-section-gate-chips-grid {
+        grid-template-columns: repeat(3, 1fr) !important;
+        max-width: 800px !important;
+        gap: 0.75rem;
+      }
+      @media (max-width: 900px) {
+        .idsq-section-gate-chips-grid {
+          grid-template-columns: repeat(2, 1fr) !important;
+        }
+      }
+      @media (max-width: 640px) {
+        .idsq-section-gate-chips-grid {
+          grid-template-columns: repeat(2, 1fr) !important;
+        }
       }
       .idsq-color-chip {
         display: inline-flex;
@@ -5053,6 +5188,56 @@
       section.appendChild(selectionInstruction);
     }
     
+    // Add Select All / Select None buttons for section gate questions (right above the grid)
+    if (question.id && question.id.startsWith('section_gate_')) {
+      const selectButtons = createElement('div', 'idsq-select-all-none');
+      const selectAllBtn = createElement('button', 'idsq-button idsq-button-secondary idsq-select-all-btn', {
+        type: 'button'
+      });
+      selectAllBtn.textContent = 'Select All';
+      const selectNoneBtn = createElement('button', 'idsq-button idsq-button-secondary idsq-select-none-btn', {
+        type: 'button'
+      });
+      selectNoneBtn.textContent = 'Select None';
+      
+      selectAllBtn.addEventListener('click', () => {
+        const allOptionIds = question.options.map(opt => opt.id);
+        state.jsonQuestionAnswers[question.id] = allOptionIds;
+        if (saveStateFn) saveStateFn(state);
+        if (onAnswer) onAnswer(question.id, allOptionIds);
+        renderJSONQuestion(question, config, mount, state, handlers, saveStateFn, onAnswer, onContinue);
+      });
+      
+      selectNoneBtn.addEventListener('click', () => {
+        state.jsonQuestionAnswers[question.id] = [];
+        if (saveStateFn) saveStateFn(state);
+        if (onAnswer) onAnswer(question.id, []);
+        renderJSONQuestion(question, config, mount, state, handlers, saveStateFn, onAnswer, onContinue);
+      });
+      
+      selectButtons.appendChild(selectAllBtn);
+      selectButtons.appendChild(selectNoneBtn);
+      section.appendChild(selectButtons);
+    }
+    
+    // Special handling for section gate questions - initialize with all selected
+    if (question.id && question.id.startsWith('section_gate_')) {
+      // Initialize with all options selected ONLY if answer is completely undefined/null (not if it's an empty array)
+      // Empty array means user explicitly selected none, so don't override that
+      if (currentAnswer === undefined || currentAnswer === null) {
+        const allOptionIds = question.options.map(opt => opt.id);
+        state.jsonQuestionAnswers[question.id] = allOptionIds;
+        if (saveStateFn) saveStateFn(state);
+        // Re-render to show all selected
+        renderJSONQuestion(question, config, mount, state, handlers, saveStateFn, onAnswer, onContinue);
+        return; // Exit early since we're re-rendering
+      }
+      // Add special class to grid for section gates
+      if (!section.classList.contains('idsq-section-gate-container')) {
+        section.classList.add('idsq-section-gate-container');
+      }
+    }
+    
     // Special rendering for color selection question (ds_excluded_colors) - use chips instead of cards
     if (question.id === 'ds_excluded_colors') {
       const colorContainer = createElement('div', 'idsq-color-chips-container');
@@ -5132,7 +5317,11 @@
     } else {
       // Standard card-based rendering
       const grid = createElement('div', 'idsq-option-grid');
-      if (question.options && question.options.length <= 2) {
+      
+      // Special grid layout for section gate questions - 5 columns, smaller cards
+      if (question.id && question.id.startsWith('section_gate_')) {
+        grid.classList.add('idsq-section-gate-grid');
+      } else if (question.options && question.options.length <= 2) {
         grid.classList.add('idsq-grid-two-items');
       } else if (question.options && question.options.length === 4) {
         grid.classList.add('idsq-grid-four-items');
@@ -5146,14 +5335,28 @@
       });
       
       // Check if selected
+      let isSelected = false;
       if (isMultiSelect) {
         if (Array.isArray(currentAnswer) && currentAnswer.includes(option.id)) {
           card.classList.add('idsq-selected');
+          isSelected = true;
         }
       } else {
         if (currentAnswer === option.id) {
           card.classList.add('idsq-selected');
+          isSelected = true;
         }
+      }
+      
+      // Add checkmark overlay for selected cards
+      if (isSelected) {
+        const checkmarkOverlay = createElement('div', 'idsq-card-checkmark');
+        checkmarkOverlay.innerHTML = `
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8 12L11 15L16 9" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        `;
+        card.appendChild(checkmarkOverlay);
       }
       
       // Add click handler
@@ -5269,12 +5472,16 @@
     // Continue button logic:
     // - For single-select: show if answered (but will auto-advance after selection)
     // - For multi-select: only show if at least one selection is made
+    // - For section gates: allow continue even with empty selection (user can skip)
     const hasAnswer = isMultiSelect 
       ? (Array.isArray(currentAnswer) && currentAnswer.length > 0)
       : (currentAnswer !== undefined && currentAnswer !== null);
     
-    // Skip button for multi-select questions (only show when no selections made)
-    if (isMultiSelect && !hasAnswer) {
+    // For section gates, always show continue button (even if nothing selected)
+    const isSectionGate = question.id && question.id.startsWith('section_gate_');
+    
+    // Skip button for multi-select questions (only show when no selections made and not section gate)
+    if (isMultiSelect && !hasAnswer && !isSectionGate) {
       const skipButton = createElement('button', 'idsq-button idsq-button-secondary');
       skipButton.textContent = 'Skip';
       skipButton.addEventListener('click', () => {
@@ -5287,8 +5494,8 @@
       navigation.appendChild(skipButton);
     }
     
-    // Only show continue button if there's an answer (selection made)
-    if (hasAnswer) {
+    // Show continue button if there's an answer OR if it's a section gate (allow empty selection)
+    if (hasAnswer || isSectionGate) {
       const continueButton = createElement('button', 'idsq-button idsq-button-primary');
       continueButton.textContent = 'Continue';
       continueButton.addEventListener('click', () => {
@@ -5629,6 +5836,11 @@
     
     // Filter questions based on current state
     const visibleQuestions = filterQuestionsByConditions(questions, context);
+    
+    // Ensure flow is set to project-type for resume functionality
+    if (state.currentFlow !== 'project-type') {
+      state.currentFlow = 'project-type';
+    }
     
     // Save current question index to state for resume functionality
     state.jsonQuestionIndex = questionIndex;
@@ -6065,6 +6277,14 @@
       // Check if selected
       if (state.projectContext.projectType === type.id || state.projectType === type.id) {
         card.classList.add('idsq-selected');
+        // Add checkmark overlay for selected cards
+        const checkmarkOverlay = createElement('div', 'idsq-card-checkmark');
+        checkmarkOverlay.innerHTML = `
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8 12L11 15L16 9" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        `;
+        card.appendChild(checkmarkOverlay);
       }
       
       card.classList.add('idsq-space-card');
@@ -7347,6 +7567,16 @@
         renderExpertQuestion(config, mount, state, handlers);
       } else if (flow === 'materials-selection') {
         renderMaterialsSelection(config, mount, state, handlers);
+      } else if (flow === 'section-gates') {
+        renderSectionGates(config, mount, state, handlers, saveState);
+      } else if (flow === 'space-questions') {
+        const spaceId = state.currentSpace || (state.spaceOrder && state.spaceOrder[0]);
+        const questionIndex = state.currentSpaceQuestionIndex && spaceId ? (state.currentSpaceQuestionIndex[spaceId] || 0) : 0;
+        if (spaceId) {
+          renderSpaceQuestions(spaceId, questionIndex, config, mount, state, handlers, saveState);
+        } else {
+          renderSectionGates(config, mount, state, handlers, saveState);
+        }
       } else if (flow === 'pathway-coming-soon') {
         renderPathwayComingSoon(config, mount, state, handlers, saveState);
       } else if (flow === 'success') {
