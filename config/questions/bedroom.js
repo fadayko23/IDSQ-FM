@@ -26,7 +26,7 @@ const BEDROOM_DEEPDIVE = [
           { id: "rug",              name: "Rug" },
           { id: "window_treatments",name: "Window Treatments" },
           { id: "closet_system",    name: "Closet System" },
-          { id: "entertainment",    name: "Entertainment (TV)" },
+          { id: "entertainment",    name: "Entertainment TV" },
           { id: "fireplace",        name: "Fireplace" },
           { id: "flooring",         name: "Flooring" },
           { id: "baseboards",       name: "Baseboards" },

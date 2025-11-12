@@ -3573,6 +3573,14 @@
         font-size: 0.95rem;
         font-weight: 600;
         margin-bottom: 0.25rem;
+        line-height: 1.3;
+      }
+      .idsq-section-gate-grid .idsq-option-subtitle {
+        margin-top: 0;
+        margin-bottom: 0;
+        line-height: 1.3;
+        font-size: 0.95rem;
+        font-weight: 600;
       }
       .idsq-section-gate-grid .idsq-option-description {
         font-size: 0.8rem;
