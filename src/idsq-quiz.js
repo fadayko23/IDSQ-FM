@@ -959,13 +959,22 @@
       return condition.routeMode.includes(currentRouteMode);
     }
     
-    // Category selection condition: { "selected": "section_gate_gi:flooring" }
+    // Category selection condition: { "selected": "section_gate_gi:flooring" } or { "selected": "section_gate_bedroom" }
     if (condition.selected) {
-      const [gateId, categoryId] = condition.selected.split(':');
+      const parts = condition.selected.split(':');
+      const gateId = parts[0];
+      const categoryId = parts[1]; // May be undefined if no category specified
       const selectedCategories = context.selectedCategories || context.projectContext?.selectedCategories || {};
       // selectedCategories is an object: { "section_gate_gi": ["flooring", "baseboards", ...] }
       const gateSelections = selectedCategories[gateId] || [];
-      return Array.isArray(gateSelections) && gateSelections.includes(categoryId);
+      
+      if (categoryId) {
+        // Specific category check: "section_gate_gi:flooring"
+        return Array.isArray(gateSelections) && gateSelections.includes(categoryId);
+      } else {
+        // Gate-level check: "section_gate_bedroom" - check if gate has any selections
+        return Array.isArray(gateSelections) && gateSelections.length > 0;
+      }
     }
     
     // Previous answer condition: { "answerOf": "question_id", "in": ["answer1", "answer2"] }
@@ -3451,6 +3460,30 @@
         font-weight: 700;
         color: rgba(44, 44, 44, 0.85);
       }
+      .idsq-text-input-container {
+        max-width: 700px;
+        margin: 2rem auto;
+        width: 100%;
+      }
+      .idsq-text-input {
+        width: 100%;
+        padding: 1rem;
+        border: 2px solid rgba(54, 54, 54, 0.1);
+        border-radius: 8px;
+        font-size: 16px;
+        font-family: inherit;
+        line-height: 1.5;
+        resize: vertical;
+        min-height: 120px;
+        transition: border-color 0.2s ease;
+      }
+      .idsq-text-input:focus {
+        outline: none;
+        border-color: #006bea;
+      }
+      .idsq-text-input::placeholder {
+        color: rgba(44, 44, 44, 0.5);
+      }
       .idsq-instruction {
         font-size: 0.95rem;
         font-weight: 500;
@@ -4282,6 +4315,15 @@
         -khtml-user-drag: none;
         -moz-user-drag: none;
         -o-user-drag: none;
+      }
+      .idsq-image-placeholder {
+        background: #f0f0f0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #999999;
+        font-size: 14px;
+        font-weight: 500;
       }
       .idsq-option-label {
         padding: 1.25rem;
@@ -5137,8 +5179,10 @@
     const selectAllMatch = promptText.match(selectAllRegex);
     let selectAllText = null;
     if (selectAllMatch) {
-      // Extract the matched text (use first match, remove period if present)
-      selectAllText = selectAllMatch[0].replace(/\.$/, '');
+      // Extract the matched text, remove period, and capitalize each word
+      const extracted = selectAllMatch[0].replace(/\.$/, '');
+      // Capitalize first letter of each word: "(Select All That Apply)"
+      selectAllText = extracted.replace(/\b\w/g, char => char.toUpperCase());
       // Remove all matches using replace with global flag
       promptText = promptText.replace(selectAllRegex, '').trim();
       // Clean up any double spaces or trailing/leading spaces
@@ -5160,8 +5204,10 @@
       const selectAllDescRegex = /(\([Ss]elect\s+all\s+that\s+apply\.?\))/gi;
       const selectAllDescMatch = descHtml.match(selectAllDescRegex);
       if (selectAllDescMatch) {
-        // Extract the text (remove period if present)
-        selectAllFromDesc = selectAllDescMatch[0].replace(/\.$/, '');
+        // Extract the text, remove period, and capitalize each word
+        const extracted = selectAllDescMatch[0].replace(/\.$/, '');
+        // Capitalize first letter of each word: "(Select All That Apply)"
+        selectAllFromDesc = extracted.replace(/\b\w/g, char => char.toUpperCase());
         // Remove from description (handle both markdown bold and plain text versions)
         descHtml = descHtml.replace(/\*\*\([Ss]elect\s+all\s+that\s+apply\.?\)\*\*/gi, '').replace(selectAllDescRegex, '').trim();
         // Clean up any double spaces, trailing periods/spaces, or leading spaces
@@ -5172,8 +5218,10 @@
       const selectOneRegex = /\*\*\([Ss]elect\s+one\s+option\.?\)\*\*/gi;
       const selectOneMatch = descHtml.match(selectOneRegex);
       if (selectOneMatch) {
-        // Extract the text (remove markdown bold and period if present)
-        selectOneText = selectOneMatch[0].replace(/\*\*/g, '').replace(/\.$/, '');
+        // Extract the text, remove markdown bold and period, then capitalize each word
+        const extracted = selectOneMatch[0].replace(/\*\*/g, '').replace(/\.$/, '');
+        // Capitalize first letter of each word: "(Select One Option)"
+        selectOneText = extracted.replace(/\b\w/g, char => char.toUpperCase());
         // Remove from description
         descHtml = descHtml.replace(selectOneRegex, '').trim();
         // Clean up any double spaces, trailing periods/spaces, or leading spaces
@@ -5190,8 +5238,10 @@
     const selectionText = selectAllFromDesc || selectOneText || selectAllText;
     if (selectionText) {
       const selectionInstruction = createElement('p', 'idsq-selection-instruction');
-      // Bold the text and ensure no period
-      const cleanText = selectionText.replace(/\.$/, '');
+      // Ensure no period and capitalize each word (should already be done, but double-check)
+      let cleanText = selectionText.replace(/\.$/, '');
+      // Capitalize first letter of each word if not already capitalized
+      cleanText = cleanText.replace(/\b\w/g, char => char.toUpperCase());
       selectionInstruction.innerHTML = `<strong>${cleanText}</strong>`;
       section.appendChild(selectionInstruction);
     }
@@ -5235,10 +5285,30 @@
       if (currentAnswer === undefined || currentAnswer === null) {
         const allOptionIds = question.options.map(opt => opt.id);
         state.jsonQuestionAnswers[question.id] = allOptionIds;
+        // CRITICAL: Also save to selectedCategories for filtering - this ensures questions aren't filtered out
+        if (!state.selectedCategories) state.selectedCategories = {};
+        state.selectedCategories[question.id] = allOptionIds;
+        console.log('Section gate initialized with all selected:', {
+          questionId: String(question.id),
+          allOptionIds: JSON.stringify(allOptionIds),
+          savedToSelectedCategories: JSON.stringify(state.selectedCategories[question.id])
+        });
         if (saveStateFn) saveStateFn(state);
         // Re-render to show all selected
         renderJSONQuestion(question, config, mount, state, handlers, saveStateFn, onAnswer, onContinue);
         return; // Exit early since we're re-rendering
+      }
+      
+      // Also ensure selectedCategories is set even if currentAnswer exists (defensive check)
+      if (!state.selectedCategories) state.selectedCategories = {};
+      if (!state.selectedCategories[question.id] && Array.isArray(currentAnswer) && currentAnswer.length > 0) {
+        state.selectedCategories[question.id] = currentAnswer;
+        console.log('Section gate selections restored to selectedCategories:', {
+          questionId: String(question.id),
+          currentAnswer: JSON.stringify(currentAnswer),
+          savedToSelectedCategories: JSON.stringify(state.selectedCategories[question.id])
+        });
+        if (saveStateFn) saveStateFn(state);
       }
       // Add special class to grid for section gates
       if (!section.classList.contains('idsq-section-gate-container')) {
@@ -5322,18 +5392,75 @@
       }
       
       section.appendChild(navigation);
-    } else {
+    } else if (question.type === 'text') {
+      // Text input question - render textarea
+      const textContainer = createElement('div', 'idsq-text-input-container');
+      const textInput = createElement('textarea', 'idsq-text-input', {
+        rows: '4',
+        placeholder: question.placeholder || 'Enter your response...',
+        value: currentAnswer || ''
+      });
+      
+      textInput.addEventListener('input', (e) => {
+        const value = e.target.value.trim();
+        state.jsonQuestionAnswers[question.id] = value || null;
+        if (saveStateFn) saveStateFn(state);
+        if (onAnswer) onAnswer(question.id, value || null);
+      });
+      
+      textContainer.appendChild(textInput);
+      section.appendChild(textContainer);
+      
+      // Navigation for text questions
+      const navigation = createElement('div', 'idsq-step-navigation');
+      
+      // Previous button
+      if (question._previousHandler) {
+        const previousButton = createElement('button', 'idsq-button idsq-button-secondary');
+        previousButton.textContent = 'Previous';
+        previousButton.addEventListener('click', () => {
+          question._previousHandler();
+        });
+        navigation.appendChild(previousButton);
+      }
+      
+      // Continue/Skip button
+      const hasAnswer = currentAnswer && currentAnswer.trim().length > 0;
+      
+      if (!hasAnswer) {
+        const skipButton = createElement('button', 'idsq-button idsq-button-secondary');
+        skipButton.textContent = 'Skip';
+        skipButton.addEventListener('click', () => {
+          state.jsonQuestionAnswers[question.id] = null;
+          if (saveStateFn) saveStateFn(state);
+          if (onAnswer) onAnswer(question.id, null);
+          if (onContinue) onContinue();
+        });
+        navigation.appendChild(skipButton);
+      }
+      
+      if (hasAnswer) {
+        const continueButton = createElement('button', 'idsq-button idsq-button-primary');
+        continueButton.textContent = 'Continue';
+        continueButton.addEventListener('click', () => {
+          if (onContinue) onContinue();
+        });
+        navigation.appendChild(continueButton);
+      }
+      
+      section.appendChild(navigation);
+    } else if (question.options && Array.isArray(question.options) && question.options.length > 0) {
       // Standard card-based rendering
       const grid = createElement('div', 'idsq-option-grid');
       
       // Special grid layout for section gate questions - 5 columns, smaller cards
       if (question.id && question.id.startsWith('section_gate_')) {
         grid.classList.add('idsq-section-gate-grid');
-      } else if (question.options && question.options.length <= 2) {
+      } else if (question.options.length <= 2) {
         grid.classList.add('idsq-grid-two-items');
-      } else if (question.options && question.options.length === 4) {
+      } else if (question.options.length === 4) {
         grid.classList.add('idsq-grid-four-items');
-      } else if (question.options && question.options.length === 6) {
+      } else if (question.options.length === 6) {
         grid.classList.add('idsq-grid-six-items');
       }
       
@@ -5888,6 +6015,12 @@
       saveStateFn,
       (questionId, answer) => {
         // Handle answer
+        console.log('Global question answered:', {
+          questionId: String(questionId),
+          answer: String(answer),
+          answerType: typeof answer,
+          isArray: Array.isArray(answer)
+        });
         state.jsonQuestionAnswers[questionId] = answer;
         
         // Update state based on question type
@@ -5900,9 +6033,21 @@
           if (!state.projectContext) state.projectContext = {};
           state.projectContext.buildType = { id: answer };
         } else if (questionId === 'route_mode') {
+          // Save route_mode to all relevant state locations
           state.routeMode = answer;
+          // Ensure jsonQuestionAnswers exists
+          if (!state.jsonQuestionAnswers) state.jsonQuestionAnswers = {};
+          state.jsonQuestionAnswers.route_mode = answer; // Ensure it's saved here too
           if (!state.projectContext) state.projectContext = {};
           state.projectContext.routeMode = answer;
+          
+          console.log('Route mode saved:', {
+            questionId: questionId,
+            answer: answer,
+            stateRouteMode: state.routeMode,
+            jsonRouteMode: state.jsonQuestionAnswers.route_mode,
+            projectContextRouteMode: state.projectContext.routeMode
+          });
         }
         
         if (saveStateFn) saveStateFn(state);
@@ -5970,19 +6115,54 @@
     questions.forEach(item => {
       if (item.questions && Array.isArray(item.questions)) {
         // This is a category object with nested questions
+        // Assign the category to each nested question
         // Include the nested questions
+        console.log('Processing category object:', {
+          spaceId: String(spaceId),
+          itemCategory: String(item.category),
+          questionsCount: String(item.questions.length),
+          firstQuestionId: item.questions[0]?.id
+        });
         item.questions.forEach(q => {
           // Preserve category context if needed
+          const hadCategory = !!q.category;
           if (!q.category && item.category) {
             q.category = item.category;
           }
+          console.log('Flattening question:', {
+            spaceId: String(spaceId),
+            questionId: String(q.id),
+            itemCategory: String(item.category),
+            questionHadCategory: String(hadCategory),
+            questionCategoryAfter: String(q.category)
+          });
           flattened.push(q);
         });
       } else if (item.id || item.prompt) {
         // This is a question object itself (like section_gate_gi in general-interior.js)
+        console.log('Flattening direct question:', {
+          spaceId: String(spaceId),
+          questionId: String(item.id),
+          questionCategory: String(item.category)
+        });
         flattened.push(item);
       }
     });
+    
+    const categoryBreakdown = flattened.reduce((acc, q) => {
+      const cat = q.category || 'NO_CATEGORY';
+      acc[cat] = (acc[cat] || 0) + 1;
+      return acc;
+    }, {});
+    
+    console.log('=== FLATTENED QUESTIONS SUMMARY ===');
+    console.log('Space ID:', String(spaceId));
+    console.log('Total flattened:', String(flattened.length));
+    console.log('Questions with categories:', String(flattened.filter(q => q.category).length));
+    console.log('Questions without categories:', String(flattened.filter(q => !q.category).length));
+    console.log('Category breakdown:', JSON.stringify(categoryBreakdown, null, 2));
+    console.log('Sample questions:', flattened.slice(0, 5).map(q => ({ id: q.id, category: q.category })));
+    console.log('===================================');
     
     return flattened;
   }
@@ -6027,7 +6207,7 @@
       if (saveStateFn) saveStateFn(state);
     }
     
-    const currentSpaceIndex = state.currentSpaceIndex || 0;
+    const currentSpaceIndex = state.currentSpaceIndex !== undefined ? state.currentSpaceIndex : 0;
     if (currentSpaceIndex >= state.spaceOrder.length) {
       // All section gates completed
       handlers.onContinueFromSectionGates();
@@ -6035,6 +6215,14 @@
     }
     
     const currentSpaceId = state.spaceOrder[currentSpaceIndex];
+    
+    console.log('renderSectionGates called:', {
+      currentSpaceIndex: currentSpaceIndex,
+      currentSpaceId: currentSpaceId,
+      spaceOrder: state.spaceOrder,
+      stateCurrentSpaceIndex: state.currentSpaceIndex
+    });
+    
     const sectionGate = findSectionGateQuestion(currentSpaceId);
     
     if (!sectionGate) {
@@ -6111,16 +6299,147 @@
       saveStateFn,
       (questionId, answer) => {
         // Store section gate selections
+        console.log('Section gate answered:', {
+          questionId: String(questionId),
+          answer: JSON.stringify(answer),
+          answerType: typeof answer,
+          isArray: Array.isArray(answer),
+          normalizedAnswer: Array.isArray(answer) ? answer : [answer]
+        });
         if (!state.selectedCategories) state.selectedCategories = {};
         // Store as array of category IDs
         state.selectedCategories[questionId] = Array.isArray(answer) ? answer : [answer];
+        console.log('Stored selectedCategories:', {
+          questionId: String(questionId),
+          storedValue: JSON.stringify(state.selectedCategories[questionId]),
+          allSelectedCategories: JSON.stringify(state.selectedCategories)
+        });
         if (saveStateFn) saveStateFn(state);
       },
       () => {
-        // Continue to next space's section gate
-        state.currentSpaceIndex = currentSpaceIndex + 1;
-        if (saveStateFn) saveStateFn(state);
-        renderSectionGates(config, mount, state, handlers, saveStateFn);
+        // After completing a section gate, route to that space's questions immediately
+        // Then after completing questions, move to next space's section gate
+        // IMPORTANT: Use the closure values (currentSpaceId, currentSpaceIndex) which are guaranteed
+        // to be correct for the gate that was just displayed. Don't read from state.currentSpaceIndex
+        // as it might have been modified elsewhere.
+        const clickedSpaceIndex = currentSpaceIndex; // Use closure value - this is the gate we just completed
+        const clickedSpaceId = currentSpaceId; // Use closure value - this is the space we just completed
+        
+        // Check all possible locations for route_mode
+        const routeMode = state.routeMode || state.jsonQuestionAnswers?.route_mode || state.projectContext?.routeMode;
+        
+        // Debug logging to help troubleshoot routing issues
+        if (!routeMode) {
+          console.warn('RouteMode not found in state:', {
+            stateRouteMode: state.routeMode,
+            jsonRouteMode: state.jsonQuestionAnswers?.route_mode,
+            projectContextRouteMode: state.projectContext?.routeMode,
+            jsonQuestionAnswersKeys: Object.keys(state.jsonQuestionAnswers || {}),
+            hasRouteModeInJson: 'route_mode' in (state.jsonQuestionAnswers || {})
+          });
+        }
+        
+        // Check if routeMode was explicitly set (not null/undefined)
+        // Only default to 'standard' if routeMode was never set, not if it's explicitly 'deep' or 'standard'
+        // This ensures users go through questions unless they explicitly chose Express
+        const effectiveRouteMode = (routeMode !== null && routeMode !== undefined) ? routeMode : 'standard';
+        
+        console.log('Section gate Continue clicked - DETAILED:', {
+          clickedSpaceId: String(clickedSpaceId),
+          clickedSpaceIndex: String(clickedSpaceIndex),
+          closureCurrentSpaceId: String(currentSpaceId),
+          closureCurrentSpaceIndex: String(currentSpaceIndex),
+          stateCurrentSpaceIndex: String(state.currentSpaceIndex),
+          spaceOrder: JSON.stringify(state.spaceOrder),
+          routeMode: String(routeMode),
+          effectiveRouteMode: String(effectiveRouteMode),
+          stateRouteMode: String(state.routeMode),
+          jsonRouteMode: String(state.jsonQuestionAnswers?.route_mode),
+          projectContextRouteMode: String(state.projectContext?.routeMode)
+        });
+        
+        if (effectiveRouteMode === 'express') {
+          // Express: Skip questions, check if there are more section gates
+          const nextSpaceIndex = clickedSpaceIndex + 1;
+          if (nextSpaceIndex >= state.spaceOrder.length) {
+            // All section gates completed, go to materials
+            handlers.onContinueFromSectionGates();
+          } else {
+            // Continue to next space's section gate
+            state.currentSpaceIndex = nextSpaceIndex;
+            if (saveStateFn) saveStateFn(state);
+            renderSectionGates(config, mount, state, handlers, saveStateFn);
+          }
+        } else {
+          // Standard or Deep: Route to this space's first category questions
+          // Use the clicked space ID (not closure values which might be stale)
+          const targetSpaceId = clickedSpaceId || currentSpaceId || state.spaceOrder[clickedSpaceIndex];
+          if (!targetSpaceId) {
+            console.error('Cannot route: targetSpaceId is undefined', { 
+              clickedSpaceId, 
+              clickedSpaceIndex,
+              currentSpaceId, 
+              currentSpaceIndex,
+              stateCurrentSpaceIndex: state.currentSpaceIndex,
+              spaceOrder: state.spaceOrder 
+            });
+            return;
+          }
+          
+          console.log('Routing to space questions - DETAILED:', {
+            targetSpaceId: String(targetSpaceId),
+            clickedSpaceId: String(clickedSpaceId),
+            clickedSpaceIndex: String(clickedSpaceIndex),
+            effectiveRouteMode: String(effectiveRouteMode),
+            spaceOrderAtClickedIndex: String(state.spaceOrder[clickedSpaceIndex])
+          });
+          
+          state.currentFlow = 'space-questions';
+          state.currentSpace = targetSpaceId;
+          state.currentSpaceQuestionIndex = state.currentSpaceQuestionIndex || {};
+          state.completedCategories = state.completedCategories || {};
+          
+          // Find first category's first question
+          const allQuestions = loadSpaceQuestions(targetSpaceId);
+          const sectionGateId = `section_gate_${normalizeSpaceId(targetSpaceId)}`;
+          const selectedCategoriesForSpace = (state.selectedCategories || {})[sectionGateId] || [];
+          
+          const context = {
+            projectType: state.projectType || state.jsonQuestionAnswers?.project_type,
+            buildType: state.buildType || state.jsonQuestionAnswers?.build_type,
+            routeMode: state.routeMode || state.jsonQuestionAnswers?.route_mode,
+            answers: state.jsonQuestionAnswers || {},
+            jsonQuestionAnswers: state.jsonQuestionAnswers || {},
+            projectContext: state.projectContext || {},
+            selectedCategories: state.selectedCategories || {},
+          };
+          
+          const visibleQuestions = filterQuestionsByConditions(allQuestions, context);
+          const questionsToShow = visibleQuestions.filter(q => {
+            if (q.id && q.id.startsWith('section_gate_')) return false;
+            if (selectedCategoriesForSpace.length > 0) {
+              if (q.category) {
+                return selectedCategoriesForSpace.includes(q.category);
+              }
+              return false;
+            }
+            return !q.category || true;
+          });
+          
+          // Find first category's first question
+          const firstCategory = selectedCategoriesForSpace.length > 0 ? selectedCategoriesForSpace[0] : null;
+          let firstQuestionIndex = 0;
+          if (firstCategory) {
+            const firstCategoryQuestion = questionsToShow.findIndex(q => q.category === firstCategory);
+            if (firstCategoryQuestion >= 0) {
+              firstQuestionIndex = firstCategoryQuestion;
+            }
+          }
+          
+          state.currentSpaceQuestionIndex[targetSpaceId] = firstQuestionIndex;
+          if (saveStateFn) saveStateFn(state);
+          renderSpaceQuestions(targetSpaceId, firstQuestionIndex, config, mount, state, handlers, saveStateFn);
+        }
       }
     );
   }
@@ -6136,6 +6455,12 @@
    * @param {Function} saveStateFn - Function to save state
    */
   function renderSpaceQuestions(spaceId, questionIndex, config, mount, state, handlers, saveStateFn) {
+    console.log('renderSpaceQuestions called:', {
+      spaceId: String(spaceId),
+      questionIndex: String(questionIndex),
+      currentFlow: String(state.currentFlow)
+    });
+    
     state.currentFlow = 'space-questions';
     state.currentSpace = spaceId;
     
@@ -6147,7 +6472,14 @@
     
     // Load all questions for this space
     const allQuestions = loadSpaceQuestions(spaceId);
+    console.log('Loaded questions for space:', {
+      spaceId: String(spaceId),
+      allQuestionsCount: String(allQuestions ? allQuestions.length : 0),
+      allQuestions: allQuestions ? allQuestions.map(q => ({ id: q.id, category: q.category })) : []
+    });
+    
     if (!allQuestions || allQuestions.length === 0) {
+      console.warn('No questions found for space, routing to next space:', String(spaceId));
       // No questions for this space, move to next space
       handlers.onContinueFromSpaceQuestions(spaceId);
       return;
@@ -6168,11 +6500,65 @@
     const visibleQuestions = filterQuestionsByConditions(allQuestions, context);
     
     // Further filter: exclude section gate questions (already handled)
-    const questionsToShow = visibleQuestions.filter(q => 
-      !q.id || !q.id.startsWith('section_gate_')
-    );
+    // AND filter by selected categories - only show questions whose category was selected
+    const sectionGateId = `section_gate_${normalizeSpaceId(spaceId)}`;
+    const selectedCategoriesForSpace = (state.selectedCategories || {})[sectionGateId] || [];
+    
+    const questionsToShow = visibleQuestions.filter(q => {
+      // Exclude section gate questions
+      if (q.id && q.id.startsWith('section_gate_')) {
+        return false;
+      }
+      
+      // If categories were selected in the section gate, filter by category
+      if (selectedCategoriesForSpace.length > 0) {
+        // If question has a category field, check if that category was selected
+        if (q.category) {
+          return selectedCategoriesForSpace.includes(q.category);
+        }
+        // If question doesn't have a category field, exclude it when filtering by category
+        // (questions should belong to a category if categories are being filtered)
+        return false;
+      }
+      
+      // If no categories selected (shouldn't happen with default "all selected", but handle gracefully)
+      // Include questions without category for backward compatibility
+      return !q.category || true;
+    });
+    
+    console.log('=== FILTERED QUESTIONS DETAILED ===');
+    console.log('Space ID:', String(spaceId));
+    console.log('Visible questions count:', String(visibleQuestions.length));
+    console.log('Questions to show count:', String(questionsToShow.length));
+    console.log('Selected categories for space:', JSON.stringify(selectedCategoriesForSpace));
+    console.log('Section gate ID:', String(sectionGateId));
+    console.log('All selected categories:', JSON.stringify(state.selectedCategories));
+    console.log('Route mode:', String(context.routeMode));
+    console.log('First 5 visible questions:', JSON.stringify(visibleQuestions.slice(0, 5).map(q => ({ id: q.id, category: q.category, hasCategory: !!q.category })), null, 2));
+    console.log('Questions to show:', JSON.stringify(questionsToShow.map(q => ({ id: q.id, category: q.category })), null, 2));
+    console.log('===================================');
     
     // Check if we've completed all questions for this space
+    if (questionsToShow.length === 0) {
+      console.warn('=== NO QUESTIONS TO SHOW ===');
+      console.warn('Space ID:', String(spaceId));
+      console.warn('Visible questions count:', String(visibleQuestions.length));
+      console.warn('Selected categories for space:', JSON.stringify(selectedCategoriesForSpace));
+      console.warn('Section gate ID:', String(sectionGateId));
+      console.warn('Route mode:', String(context.routeMode));
+      console.warn('First 10 visible questions (to debug):', JSON.stringify(visibleQuestions.slice(0, 10).map(q => ({ 
+        id: q.id, 
+        category: q.category, 
+        hasCategory: !!q.category,
+        showIf: q.showIf
+      })), null, 2));
+      console.warn('==============================');
+      // No questions to show for this space (likely all filtered out by category selection)
+      // Move to next space or materials
+      handlers.onContinueFromSpaceQuestions(spaceId);
+      return;
+    }
+    
     if (questionIndex >= questionsToShow.length) {
       // All questions answered for this space
       handlers.onContinueFromSpaceQuestions(spaceId);
@@ -6180,6 +6566,24 @@
     }
     
     const question = questionsToShow[questionIndex];
+    const currentCategory = question.category;
+    
+    // Check if we've completed all questions for the current category
+    // Group questions by category to find the last question in this category
+    const questionsByCategory = {};
+    questionsToShow.forEach((q, idx) => {
+      const cat = q.category || 'uncategorized';
+      if (!questionsByCategory[cat]) {
+        questionsByCategory[cat] = [];
+      }
+      questionsByCategory[cat].push({ question: q, index: idx });
+    });
+    
+    // Find the last question index for the current category
+    const currentCategoryQuestions = questionsByCategory[currentCategory] || [];
+    const lastQuestionInCategory = currentCategoryQuestions.length > 0 
+      ? currentCategoryQuestions[currentCategoryQuestions.length - 1].index 
+      : questionIndex;
     
     // Set up previous handler
     question._previousHandler = () => {
@@ -6209,8 +6613,14 @@
         if (saveStateFn) saveStateFn(state);
       },
       () => {
-        // Continue to next question in this space
-        renderSpaceQuestions(spaceId, questionIndex + 1, config, mount, state, handlers, saveStateFn);
+        // Check if this was the last question in the current category
+        if (questionIndex === lastQuestionInCategory && currentCategory) {
+          // Category questions complete, route to materials selection for this category
+          handlers.onCategoryQuestionsComplete(spaceId, currentCategory);
+        } else {
+          // Continue to next question in this space
+          renderSpaceQuestions(spaceId, questionIndex + 1, config, mount, state, handlers, saveStateFn);
+        }
       }
     );
   }
@@ -6422,6 +6832,125 @@
       backButton.textContent = 'Previous';
       backButton.addEventListener('click', () => {
         handlers.onGoBackFromExpertQuestion();
+      });
+      navigation.appendChild(backButton);
+    }
+    
+    section.appendChild(navigation);
+    
+    showSection(mount, section, handlers);
+  }
+
+  /**
+   * Renders materials selection for a specific category within a space
+   * @param {string} spaceId - Space ID
+   * @param {string} categoryId - Category ID
+   * @param {Object} config - Quiz config
+   * @param {HTMLElement} mount - Mount element
+   * @param {Object} state - Current state
+   * @param {Object} handlers - Event handlers
+   * @param {Function} saveStateFn - Function to save state
+   */
+  function renderCategoryMaterials(spaceId, categoryId, config, mount, state, handlers, saveStateFn) {
+    const section = createElement('section', 'idsq-step');
+    
+    // Add Clara mini intro
+    const claraWrapper = createElement('div', 'idsq-clara-mini-wrapper');
+    const claraMini = createElement('img', 'idsq-clara-mini', {
+      src: config.copy.claraProfileUrl,
+      alt: 'Clara',
+      draggable: 'false',
+    });
+    claraMini.addEventListener('contextmenu', (e) => e.preventDefault());
+    const claraInfo = createElement('p', 'idsq-clara-info');
+    claraInfo.innerHTML = '<span class="idsq-clara-info-name">Clara</span> · Interior Design Expert';
+    claraWrapper.appendChild(claraMini);
+    claraWrapper.appendChild(claraInfo);
+    section.appendChild(claraWrapper);
+    
+    // Get category info from config
+    const categories = config.materialsBySpace[spaceId] || [];
+    const category = categories.find(cat => cat.id === categoryId);
+    
+    if (!category) {
+      // Category not found, skip to next category
+      handlers.onContinueFromCategoryMaterials(spaceId, categoryId);
+      return;
+    }
+    
+    // Dynamic title based on space and category
+    const spaceName = spaceId === 'bathroom' ? 'bathroom' : 
+                      spaceId === 'kitchen' ? 'kitchen' : 'space';
+    const title = createElement('h2', 'idsq-title');
+    title.textContent = `What would you prefer for your ${spaceName} ${category.name.toLowerCase()}?`;
+    section.appendChild(title);
+    
+    // Initialize round tracking for this category
+    const categoryKey = `${spaceId}_${categoryId}`;
+    if (!state.materialsSelections) state.materialsSelections = {};
+    if (!state.materialsSelections[categoryKey]) {
+      state.materialsSelections[categoryKey] = {
+        round: 1,
+        winners: [],
+      };
+    }
+    
+    const categoryState = state.materialsSelections[categoryKey];
+    
+    // Round 3 shows the two winners from rounds 1 and 2
+    let options;
+    if (categoryState.round === 3) {
+      options = categoryState.winners.slice(0, 2);
+    } else {
+      // Generate placeholder options (no random images)
+      options = generateMaterialOptions(categoryId, state.finalStyle?.styleId || 'modern', categoryState.round);
+      // Replace image URLs with placeholders
+      options = options.map(opt => ({
+        ...opt,
+        imageUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OTk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIE5vdCBTaG93bjwvdGV4dD48L3N2Zz4='
+      }));
+    }
+    
+    // Images grid matching quiz format
+    const grid = createElement('div', 'idsq-option-grid');
+    if (options.length === 2) {
+      grid.classList.add('idsq-grid-two-items');
+    }
+    options.forEach((option) => {
+      const card = createElement('button', 'idsq-option-card', {
+        type: 'button',
+      });
+      card.addEventListener('click', () => {
+        handlers.onSelectCategoryMaterial(spaceId, categoryId, option, categoryState.round);
+      });
+      
+      const image = createElement('img', 'idsq-option-image idsq-image-placeholder', {
+        src: option.imageUrl,
+        alt: option.name,
+        loading: 'lazy',
+        draggable: 'false',
+      });
+      image.addEventListener('contextmenu', (e) => e.preventDefault());
+      image.addEventListener('error', function() {
+        // Fallback to placeholder if image fails to load
+        this.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OTk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkltYWdlIE5vdCBTaG93bjwvdGV4dD48L3N2Zz4=';
+      });
+      
+      // No labels/captions - just images like the quiz
+      card.appendChild(image);
+      grid.appendChild(card);
+    });
+    section.appendChild(grid);
+    
+    // Navigation matching quiz format
+    const navigation = createElement('div', 'idsq-step-navigation');
+    
+    // Back button (only show if not on first round)
+    if (categoryState.round > 1) {
+      const backButton = createElement('button', 'idsq-button idsq-button-secondary');
+      backButton.textContent = 'Previous';
+      backButton.addEventListener('click', () => {
+        handlers.onGoBackCategoryMaterial(spaceId, categoryId);
       });
       navigation.appendChild(backButton);
     }
@@ -6815,7 +7344,33 @@
     if (savedState) {
       if (!savedState.projectId) savedState.projectId = generateProjectId();
       if (!savedState.buildType) savedState.buildType = null;
-      if (!savedState.routeMode) savedState.routeMode = null;
+      
+      // Restore routeMode from jsonQuestionAnswers if not set at top level
+      // This ensures route_mode selection from design specifics is preserved
+      console.log('Loading state - checking routeMode:', {
+        hasRouteMode: 'routeMode' in savedState,
+        routeModeValue: savedState.routeMode,
+        hasJsonQuestionAnswers: !!savedState.jsonQuestionAnswers,
+        jsonQuestionAnswersKeys: savedState.jsonQuestionAnswers ? Object.keys(savedState.jsonQuestionAnswers) : [],
+        jsonRouteMode: savedState.jsonQuestionAnswers?.route_mode,
+        projectContextRouteMode: savedState.projectContext?.routeMode
+      });
+      
+      if (!savedState.routeMode && savedState.jsonQuestionAnswers?.route_mode) {
+        console.log('Restoring routeMode from jsonQuestionAnswers:', savedState.jsonQuestionAnswers.route_mode);
+        savedState.routeMode = savedState.jsonQuestionAnswers.route_mode;
+        if (!savedState.projectContext) savedState.projectContext = {};
+        savedState.projectContext.routeMode = savedState.jsonQuestionAnswers.route_mode;
+      } else if (!savedState.routeMode) {
+        savedState.routeMode = null;
+      }
+      
+      console.log('After restoration - routeMode:', {
+        routeMode: savedState.routeMode,
+        jsonRouteMode: savedState.jsonQuestionAnswers?.route_mode,
+        projectContextRouteMode: savedState.projectContext?.routeMode
+      });
+      
       if (!savedState.selectedCategories) savedState.selectedCategories = {};
       if (!savedState.jsonQuestionAnswers) savedState.jsonQuestionAnswers = {};
       if (!savedState.spacesRequested) savedState.spacesRequested = [];
@@ -7383,7 +7938,11 @@
         // Section gates completed, now route based on routeMode
         const routeMode = state.routeMode || state.jsonQuestionAnswers?.route_mode || state.projectContext?.routeMode;
         
-        if (routeMode === 'express') {
+        // Check if routeMode was explicitly set (not null/undefined)
+        // Only default to 'standard' if routeMode was never set
+        const effectiveRouteMode = (routeMode !== null && routeMode !== undefined) ? routeMode : 'standard';
+        
+        if (effectiveRouteMode === 'express') {
           // Express: Skip questions, go directly to materials selection
           state.currentFlow = 'materials-selection';
           state.currentCategoryIndex = 0;
@@ -7391,12 +7950,50 @@
           renderMaterialsSelection(config, mount, state, handlers);
         } else {
           // Standard or Deep: Show space-specific questions
-          // Start with first space
+          // Start with first space and first category
           state.currentSpaceIndex = 0;
           state.currentSpaceQuestionIndex = {};
+          state.completedCategories = state.completedCategories || {};
           if (state.spaceOrder && state.spaceOrder.length > 0) {
             const firstSpaceId = state.spaceOrder[0];
-            renderSpaceQuestions(firstSpaceId, 0, config, mount, state, handlers, saveState);
+            // Find first category's first question
+            const allQuestions = loadSpaceQuestions(firstSpaceId);
+            const sectionGateId = `section_gate_${normalizeSpaceId(firstSpaceId)}`;
+            const selectedCategoriesForSpace = (state.selectedCategories || {})[sectionGateId] || [];
+            
+            const context = {
+              projectType: state.projectType || state.jsonQuestionAnswers?.project_type,
+              buildType: state.buildType || state.jsonQuestionAnswers?.build_type,
+              routeMode: state.routeMode || state.jsonQuestionAnswers?.route_mode,
+              answers: state.jsonQuestionAnswers || {},
+              jsonQuestionAnswers: state.jsonQuestionAnswers || {},
+              projectContext: state.projectContext || {},
+              selectedCategories: state.selectedCategories || {},
+            };
+            
+            const visibleQuestions = filterQuestionsByConditions(allQuestions, context);
+            const questionsToShow = visibleQuestions.filter(q => {
+              if (q.id && q.id.startsWith('section_gate_')) return false;
+              if (selectedCategoriesForSpace.length > 0) {
+                if (q.category) {
+                  return selectedCategoriesForSpace.includes(q.category);
+                }
+                return false;
+              }
+              return !q.category || true;
+            });
+            
+            // Find first category's first question
+            const firstCategory = selectedCategoriesForSpace.length > 0 ? selectedCategoriesForSpace[0] : null;
+            let firstQuestionIndex = 0;
+            if (firstCategory) {
+              const firstCategoryQuestion = questionsToShow.findIndex(q => q.category === firstCategory);
+              if (firstCategoryQuestion >= 0) {
+                firstQuestionIndex = firstCategoryQuestion;
+              }
+            }
+            
+            renderSpaceQuestions(firstSpaceId, firstQuestionIndex, config, mount, state, handlers, saveState);
           } else {
             // No spaces, go to materials
             state.currentFlow = 'materials-selection';
@@ -7406,8 +8003,86 @@
           }
         }
       },
+      onCategoryQuestionsComplete(spaceId, categoryId) {
+        // Category questions completed, route to materials selection for this category
+        state.currentFlow = 'category-materials';
+        state.currentSpace = spaceId;
+        state.currentCategory = categoryId;
+        saveState(state);
+        renderCategoryMaterials(spaceId, categoryId, config, mount, state, handlers, saveState);
+      },
+      onContinueFromCategoryMaterials(spaceId, categoryId) {
+        // Materials selection completed for a category, find next category's questions
+        // Track completed categories
+        if (!state.completedCategories) state.completedCategories = {};
+        if (!state.completedCategories[spaceId]) state.completedCategories[spaceId] = [];
+        if (!state.completedCategories[spaceId].includes(categoryId)) {
+          state.completedCategories[spaceId].push(categoryId);
+        }
+        
+        // Load questions to find next category
+        const allQuestions = loadSpaceQuestions(spaceId);
+        const sectionGateId = `section_gate_${normalizeSpaceId(spaceId)}`;
+        const selectedCategoriesForSpace = (state.selectedCategories || {})[sectionGateId] || [];
+        
+        // Build context for filtering
+        const context = {
+          projectType: state.projectType || state.jsonQuestionAnswers?.project_type,
+          buildType: state.buildType || state.jsonQuestionAnswers?.build_type,
+          routeMode: state.routeMode || state.jsonQuestionAnswers?.route_mode,
+          answers: state.jsonQuestionAnswers || {},
+          jsonQuestionAnswers: state.jsonQuestionAnswers || {},
+          projectContext: state.projectContext || {},
+          selectedCategories: state.selectedCategories || {},
+        };
+        
+        const visibleQuestions = filterQuestionsByConditions(allQuestions, context);
+        const questionsToShow = visibleQuestions.filter(q => {
+          if (q.id && q.id.startsWith('section_gate_')) return false;
+          if (selectedCategoriesForSpace.length > 0) {
+            if (q.category) {
+              return selectedCategoriesForSpace.includes(q.category);
+            }
+            return false;
+          }
+          return !q.category || true;
+        });
+        
+        // Group questions by category
+        const questionsByCategory = {};
+        questionsToShow.forEach((q, idx) => {
+          const cat = q.category || 'uncategorized';
+          if (!questionsByCategory[cat]) {
+            questionsByCategory[cat] = [];
+          }
+          questionsByCategory[cat].push({ question: q, index: idx });
+        });
+        
+        // Find next uncompleted category
+        const completedCategories = state.completedCategories[spaceId] || [];
+        const nextCategory = selectedCategoriesForSpace.find(cat => 
+          !completedCategories.includes(cat) && questionsByCategory[cat]
+        );
+        
+        if (nextCategory) {
+          // Route to next category's first question
+          const nextCategoryQuestions = questionsByCategory[nextCategory];
+          if (nextCategoryQuestions && nextCategoryQuestions.length > 0) {
+            const firstQuestionIndex = nextCategoryQuestions[0].index;
+            state.currentFlow = 'space-questions';
+            saveState(state);
+            renderSpaceQuestions(spaceId, firstQuestionIndex, config, mount, state, handlers, saveState);
+          } else {
+            // No questions for next category, move to next space
+            handlers.onContinueFromSpaceQuestions(spaceId);
+          }
+        } else {
+          // All categories completed for this space, move to next space
+          handlers.onContinueFromSpaceQuestions(spaceId);
+        }
+      },
       onContinueFromSpaceQuestions(completedSpaceId) {
-        // Questions completed for a space, move to next space or materials
+        // Questions completed for a space, move to next space's section gate or materials
         const currentSpaceIndex = state.currentSpaceIndex || 0;
         const spaceOrder = state.spaceOrder || [];
         
@@ -7417,13 +8092,13 @@
           state.completedSpaces.push(completedSpaceId);
         }
         
-        // Check if there are more spaces
+        // Check if there are more spaces that need section gates
         const nextSpaceIndex = currentSpaceIndex + 1;
         if (nextSpaceIndex < spaceOrder.length) {
-          // Move to next space
+          // Move to next space's section gate
           state.currentSpaceIndex = nextSpaceIndex;
-          const nextSpaceId = spaceOrder[nextSpaceIndex];
-          renderSpaceQuestions(nextSpaceId, 0, config, mount, state, handlers, saveState);
+          saveState(state);
+          renderSectionGates(config, mount, state, handlers, saveState);
         } else {
           // All spaces completed, go to materials selection
           state.currentFlow = 'materials-selection';
@@ -7471,6 +8146,83 @@
             saveState(state);
             renderMaterialsSelection(config, mount, state, handlers);
           }
+        }
+      },
+      onSelectCategoryMaterial(spaceId, categoryId, option, roundNumber) {
+        // Track the selected option for category-specific materials
+        const categoryKey = `${spaceId}_${categoryId}`;
+        if (!state.materialsSelections) state.materialsSelections = {};
+        if (!state.materialsSelections[categoryKey]) {
+          state.materialsSelections[categoryKey] = {
+            round: 1,
+            winners: [],
+          };
+        }
+        const categoryState = state.materialsSelections[categoryKey];
+        categoryState.winners.push(option);
+        saveState(state);
+        
+        if (roundNumber === 1 || roundNumber === 2) {
+          // Round 1 or 2: move to next round
+          categoryState.round += 1;
+          saveState(state);
+          renderCategoryMaterials(spaceId, categoryId, config, mount, state, handlers, saveState);
+        } else {
+          // Round 3: final selection made, move to next category
+          handlers.onContinueFromCategoryMaterials(spaceId, categoryId);
+        }
+      },
+      onGoBackCategoryMaterial(spaceId, categoryId) {
+        // Go back in materials selection for a category
+        const categoryKey = `${spaceId}_${categoryId}`;
+        const categoryState = state.materialsSelections[categoryKey];
+        
+        if (categoryState && categoryState.round > 1) {
+          // Go back to previous round in same category
+          categoryState.round -= 1;
+          categoryState.winners.pop(); // Remove last selection
+          saveState(state);
+          renderCategoryMaterials(spaceId, categoryId, config, mount, state, handlers, saveState);
+        } else {
+          // Go back to category questions
+          // Find the last question index for this category
+          const allQuestions = loadSpaceQuestions(spaceId);
+          const sectionGateId = `section_gate_${normalizeSpaceId(spaceId)}`;
+          const selectedCategoriesForSpace = (state.selectedCategories || {})[sectionGateId] || [];
+          
+          const context = {
+            projectType: state.projectType || state.jsonQuestionAnswers?.project_type,
+            buildType: state.buildType || state.jsonQuestionAnswers?.build_type,
+            routeMode: state.routeMode || state.jsonQuestionAnswers?.route_mode,
+            answers: state.jsonQuestionAnswers || {},
+            jsonQuestionAnswers: state.jsonQuestionAnswers || {},
+            projectContext: state.projectContext || {},
+            selectedCategories: state.selectedCategories || {},
+          };
+          
+          const visibleQuestions = filterQuestionsByConditions(allQuestions, context);
+          const questionsToShow = visibleQuestions.filter(q => {
+            if (q.id && q.id.startsWith('section_gate_')) return false;
+            if (selectedCategoriesForSpace.length > 0) {
+              if (q.category) {
+                return selectedCategoriesForSpace.includes(q.category);
+              }
+              return false;
+            }
+            return !q.category || true;
+          });
+          
+          // Find last question in this category
+          let lastQuestionIndex = 0;
+          questionsToShow.forEach((q, idx) => {
+            if (q.category === categoryId) {
+              lastQuestionIndex = idx;
+            }
+          });
+          
+          state.currentFlow = 'space-questions';
+          saveState(state);
+          renderSpaceQuestions(spaceId, lastQuestionIndex, config, mount, state, handlers, saveState);
         }
       },
       onSelectMaterial(categoryId, option, roundNumber) {
